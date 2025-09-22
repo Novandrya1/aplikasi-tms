@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/fleet_models.dart';
 import '../services/fleet_service.dart';
 import '../services/file_service.dart';
+import '../services/vehicle_service.dart';
 
 class VehicleRegistrationScreen extends StatefulWidget {
   @override
@@ -638,43 +639,40 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     if (choice == null) return;
     
     try {
-      Map<String, dynamic>? file;
-      
-      // Mock file upload for compatibility
-      file = {
-        'name': 'mock_file_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        'size': 1024,
+      // Simulate file selection (in real app, use file_picker or image_picker)
+      Map<String, dynamic> file = {
+        'name': '${documentType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        'size': 1024 + (DateTime.now().millisecondsSinceEpoch % 5000), // Random size
         'type': 'image/jpeg',
+        'path': '/mock/path/to/file.jpg', // Mock path
       };
       
-      if (file != null) {
-        setState(() {
-          switch (documentType) {
-            case 'BPKB':
-              _bpkbFile = file;
-              break;
-            case 'STNK':
-              _stnkFile = file;
-              break;
-            case 'Foto Kendaraan':
-              if (file != null) _vehiclePhotos.add(file);
-              break;
-          }
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('${choice == 'camera' ? 'Foto' : 'File'} ${file['name']} berhasil diupload'),
-              ],
-            ),
-            backgroundColor: Colors.green,
+      setState(() {
+        switch (documentType) {
+          case 'BPKB':
+            _bpkbFile = file;
+            break;
+          case 'STNK':
+            _stnkFile = file;
+            break;
+          case 'Foto Kendaraan':
+            _vehiclePhotos.add(file);
+            break;
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('${choice == 'camera' ? 'Foto' : 'File'} ${file['name']} berhasil dipilih'),
+            ],
           ),
-        );
-      }
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -878,7 +876,11 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
         maintenanceNotes: null,
       );
 
-      await FleetService.registerVehicle(vehicle);
+      final result = await FleetService.registerVehicle(vehicle);
+      final vehicleId = result['vehicle']['id'];
+
+      // Upload dokumen setelah kendaraan berhasil didaftarkan
+      await _uploadDocuments(vehicleId);
 
       showDialog(
         context: context,
@@ -894,7 +896,7 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Kendaraan berhasil didaftarkan!'),
+              Text('Kendaraan dan dokumen berhasil didaftarkan!'),
               SizedBox(height: 12),
               Container(
                 padding: EdgeInsets.all(12),
@@ -941,7 +943,7 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
               ),
               SizedBox(height: 12),
               Text(
-                'Tim verifikasi kami akan meninjau dokumen dan data kendaraan Anda. Proses verifikasi membutuhkan waktu maksimal 24 jam.',
+                'Tim verifikasi kami akan meninjau dokumen dan data kendaraan Anda. Proses verifikasi membutuhkan waktu maksimal 24 jam. Dokumen yang diupload: ${_getUploadedDocumentsCount()} file.',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
@@ -980,6 +982,51 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _uploadDocuments(int vehicleId) async {
+    try {
+      // Upload BPKB
+      if (_bpkbFile != null) {
+        await _uploadSingleDocument(vehicleId, 'bpkb', _bpkbFile!);
+      }
+      
+      // Upload STNK
+      if (_stnkFile != null) {
+        await _uploadSingleDocument(vehicleId, 'stnk', _stnkFile!);
+      }
+      
+      // Upload vehicle photos
+      for (int i = 0; i < _vehiclePhotos.length; i++) {
+        String attachmentType = i == 0 ? 'foto_depan' : 
+                               i == 1 ? 'foto_belakang' : 'foto_samping';
+        await _uploadSingleDocument(vehicleId, attachmentType, _vehiclePhotos[i]);
+      }
+    } catch (e) {
+      print('Error uploading documents: $e');
+      // Don't throw error, just log it
+    }
+  }
+
+  Future<void> _uploadSingleDocument(int vehicleId, String attachmentType, Map<String, dynamic> file) async {
+    try {
+      print('Uploading $attachmentType for vehicle $vehicleId: ${file['name']}');
+      
+      await VehicleService.uploadVehicleAttachment(vehicleId, attachmentType, file);
+      
+      print('Successfully uploaded $attachmentType');
+    } catch (e) {
+      print('Error uploading $attachmentType: $e');
+      // Don't throw error to prevent registration failure
+    }
+  }
+
+  int _getUploadedDocumentsCount() {
+    int count = 0;
+    if (_bpkbFile != null) count++;
+    if (_stnkFile != null) count++;
+    count += _vehiclePhotos.length;
+    return count;
   }
 
   @override

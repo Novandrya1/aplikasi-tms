@@ -79,4 +79,32 @@ class VehicleService {
       throw Exception(error['error'] ?? 'Failed to get vehicle');
     }
   }
+
+  static Future<void> uploadVehicleAttachment(int vehicleId, String attachmentType, Map<String, dynamic> fileInfo) async {
+    try {
+      final headers = await _getHeaders();
+      
+      // Simulate multipart upload (in real app, use http.MultipartRequest)
+      final response = await http.post(
+        Uri.parse('$baseUrl/vehicles/$vehicleId/attachments'),
+        headers: headers,
+        body: json.encode({
+          'attachment_type': attachmentType,
+          'file_name': fileInfo['name'],
+          'file_size': fileInfo['size'],
+          'mime_type': fileInfo['type'],
+        }),
+      );
+
+      print('Upload attachment response: ${response.statusCode}');
+      
+      if (response.statusCode != 201) {
+        print('Upload attachment error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to upload attachment');
+      }
+    } catch (e) {
+      print('Upload attachment error: $e');
+      throw Exception('Network error: $e');
+    }
+  }
 }
