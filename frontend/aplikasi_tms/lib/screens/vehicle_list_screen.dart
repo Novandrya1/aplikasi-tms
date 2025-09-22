@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/vehicle_service.dart';
 import '../widgets/error_widget.dart';
 import 'vehicle_registration_screen.dart';
+import 'vehicle_verification_detail_screen.dart';
 
 class VehicleListScreen extends StatefulWidget {
   const VehicleListScreen({super.key});
@@ -259,6 +260,21 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _viewVehicleDetail(vehicle),
+                  icon: const Icon(Icons.visibility, size: 16),
+                  label: const Text('Lihat Detail'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[600],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -318,5 +334,16 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  void _viewVehicleDetail(Map<String, dynamic> vehicle) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VehicleVerificationDetailScreen(
+          vehicleId: vehicle['id'],
+        ),
+      ),
+    );
   }
 }
