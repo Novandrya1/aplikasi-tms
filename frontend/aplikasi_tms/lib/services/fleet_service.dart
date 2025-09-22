@@ -17,13 +17,17 @@ class FleetService {
 
   static Future<FleetOwner> registerFleetOwner(FleetOwnerRequest request) async {
     try {
+      final token = await AuthService.getToken();
+      print('Current token: $token');
+      
+      final headers = await _getHeaders();
       print('Sending request to: $baseUrl/fleet/register');
-      print('Request headers: ${await _getHeaders()}');
+      print('Request headers: $headers');
       print('Request body: ${jsonEncode(request.toJson())}');
       
       final response = await http.post(
         Uri.parse('$baseUrl/fleet/register'),
-        headers: await _getHeaders(),
+        headers: headers,
         body: jsonEncode(request.toJson()),
       );
 

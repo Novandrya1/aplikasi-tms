@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Fleet Registration</title>
+</head>
+<body>
+    <h1>Test Fleet Registration</h1>
+    <button onclick="testLogin()">1. Login First</button>
+    <button onclick="testFleetRegister()">2. Test Fleet Register</button>
+    <div id="result"></div>
+
+    <script>
+        let authToken = '';
+
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'novan@gmail.com',
+                        password: 'admin123'
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Login response:', data);
+                
+                if (data.token) {
+                    authToken = data.token;
+                    document.getElementById('result').innerHTML = `
+                        <h3>Login Success!</h3>
+                        <p>Token: ${authToken}</p>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <h3>Login Failed!</h3>
+                        <p>${JSON.stringify(data)}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('result').innerHTML = `<h3>Login Error: ${error}</h3>`;
+            }
+        }
+
+        async function testFleetRegister() {
+            if (!authToken) {
+                alert('Please login first!');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/fleet/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        company_name: 'Test Company',
+                        business_license: '123456789',
+                        address: 'Jl. Test No. 123',
+                        phone_number: '08123456789',
+                        email: 'test@company.com'
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Fleet register response:', data);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Fleet Register Response (${response.status}):</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('Fleet register error:', error);
+                document.getElementById('result').innerHTML = `<h3>Fleet Register Error: ${error}</h3>`;
+            }
+        }
+    </script>
+</body>
+</html>

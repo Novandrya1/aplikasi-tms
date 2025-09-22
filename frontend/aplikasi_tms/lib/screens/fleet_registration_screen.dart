@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/fleet_models.dart';
 import '../services/fleet_service.dart';
 import '../services/file_upload_service.dart';
+import '../services/auth_service.dart';
 
 class FleetRegistrationScreen extends StatefulWidget {
   @override
@@ -1372,13 +1373,19 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
         }
       }
 
+      // Check if user is logged in
+      final token = await AuthService.getToken();
+      if (token == null) {
+        throw Exception('Anda harus login terlebih dahulu');
+      }
+
       // Register fleet owner first
       final fleetRequest = FleetOwnerRequest(
-        companyName: _selectedType == 'company' ? _companyNameController.text : _nameController.text,
-        businessLicense: _selectedType == 'company' ? _businessLicenseController.text : 'Individual',
-        address: _addressController.text,
-        phoneNumber: _phoneController.text,
-        email: _emailController.text,
+        companyName: _selectedType == 'company' ? _companyNameController.text.trim() : _nameController.text.trim(),
+        businessLicense: _selectedType == 'company' ? _businessLicenseController.text.trim() : 'Individual',
+        address: _addressController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
       );
 
       print('Sending fleet registration: ${fleetRequest.toJson()}');
