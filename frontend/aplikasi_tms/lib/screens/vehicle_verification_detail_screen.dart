@@ -17,9 +17,25 @@ class VehicleVerificationDetailScreen extends StatefulWidget {
 class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDetailScreen> {
   Map<String, dynamic>? _vehicle;
   List<Map<String, dynamic>> _attachments = [];
+  List<Map<String, dynamic>> _crossCheckResults = [];
   bool _isLoading = true;
   String _selectedStatus = 'approved';
+  List<String> _selectedCorrectionItems = [];
+  List<Map<String, dynamic>> _correctionOptions = [
+    {'id': 'stnk_blur', 'label': 'Foto STNK buram/tidak jelas'},
+    {'id': 'bpkb_missing', 'label': 'BPKB belum diupload'},
+    {'id': 'insurance_expired', 'label': 'Asuransi sudah habis masa berlaku'},
+    {'id': 'vehicle_photo_incomplete', 'label': 'Foto kendaraan tidak lengkap (4 sisi)'},
+    {'id': 'ktp_mismatch', 'label': 'Data KTP tidak sesuai dengan pemilik'},
+    {'id': 'selfie_unclear', 'label': 'Foto selfie + KTP tidak jelas'},
+    {'id': 'tax_expired', 'label': 'Pajak kendaraan sudah habis'},
+    {'id': 'kir_missing', 'label': 'KIR belum diupload (untuk angkutan umum)'},
+    {'id': 'company_docs', 'label': 'Dokumen perusahaan tidak lengkap'},
+    {'id': 'power_of_attorney', 'label': 'Surat kuasa diperlukan'},
+  ];
   final _notesController = TextEditingController();
+  final _inspectionLocationController = TextEditingController();
+  DateTime? _selectedInspectionDate;
   bool _isVerifying = false;
 
   @override
@@ -51,7 +67,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     try {
       return await AdminService.getVehicleAttachments(vehicleId);
     } catch (e) {
-      // Return empty list if no attachments or error
       return [];
     }
   }
@@ -92,6 +107,8 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                       SizedBox(height: 16),
                       _buildTechnicalInfoCard(),
                       SizedBox(height: 16),
+                      _buildCrossCheckCard(),
+                      SizedBox(height: 16),
                       _buildDocumentsCard(),
                       SizedBox(height: 16),
                       _buildVerificationCard(),
@@ -110,7 +127,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     String statusText = 'Menunggu Verifikasi';
     IconData statusIcon = Icons.pending;
     
-    // Enhanced status handling
     switch (status) {
       case 'approved':
         statusColor = Colors.green;
@@ -124,11 +140,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
         break;
       case 'pending':
         switch (substatus) {
-          case 'auto_validating':
-            statusColor = Colors.blue;
-            statusText = 'Validasi Otomatis';
-            statusIcon = Icons.auto_fix_high;
-            break;
           case 'needs_correction':
             statusColor = Colors.orange;
             statusText = 'Perlu Perbaikan';
@@ -139,21 +150,12 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             statusText = 'Sedang Ditinjau';
             statusIcon = Icons.rate_review;
             break;
-          case 'pending_inspection':
-            statusColor = Colors.indigo;
-            statusText = 'Menunggu Inspeksi';
-            statusIcon = Icons.search;
-            break;
           default:
             statusColor = Colors.orange;
             statusText = 'Menunggu Verifikasi';
             statusIcon = Icons.pending;
         }
         break;
-      default:
-        statusColor = Colors.grey;
-        statusText = 'Status Tidak Diketahui';
-        statusIcon = Icons.help;
     }
 
     return Card(
@@ -208,38 +210,10 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                           fontSize: 12,
                         ),
                       ),
-                      if (substatus != 'initial' && substatus != status)
-                        Text(
-                          '($substatus)',
-                          style: TextStyle(
-                            color: statusColor.withOpacity(0.7),
-                            fontSize: 10,
-                          ),
-                        ),
                     ],
                   ),
                 ),
               ],
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue[600], size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Jenis: ${_vehicle!['vehicle_type']} • Warna: ${_vehicle!['color']}',
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -268,8 +242,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             _buildInfoRow(Icons.apartment, 'Perusahaan', _vehicle!['company_name']),
             _buildInfoRow(Icons.person, 'Nama Pemilik', _vehicle!['owner_name']),
             _buildInfoRow(Icons.email, 'Email', _vehicle!['owner_email']),
-            _buildInfoRow(Icons.phone, 'Telepon', _vehicle!['owner_phone']),
-            _buildInfoRow(Icons.location_on, 'Alamat', _vehicle!['owner_address']),
           ],
         ),
       ),
@@ -296,9 +268,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             SizedBox(height: 12),
             _buildInfoRow(Icons.confirmation_number, 'No. Rangka', _vehicle!['chassis_number']),
             _buildInfoRow(Icons.settings, 'No. Mesin', _vehicle!['engine_number']),
-            _buildInfoRow(Icons.scale, 'Kapasitas Berat', '${_vehicle!['capacity_weight']} kg'),
-            _buildInfoRow(Icons.straighten, 'Kapasitas Volume', '${_vehicle!['capacity_volume']} m³'),
-            _buildInfoRow(Icons.verified_user, 'Status Kepemilikan', _vehicle!['ownership_status']),
           ],
         ),
       ),
@@ -358,21 +327,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   }
 
   Widget _buildDocumentItem(Map<String, dynamic> doc) {
-    final typeNames = {
-      'stnk': 'STNK',
-      'bpkb': 'BPKB',
-      'ktp': 'KTP Pemilik',
-      'selfie': 'Foto Selfie + KTP',
-      'vehicle_photo': 'Foto Kendaraan',
-      'foto_depan': 'Foto Depan Kendaraan',
-      'foto_belakang': 'Foto Belakang Kendaraan',
-      'foto_samping': 'Foto Samping Kendaraan',
-      'insurance': 'Asuransi',
-      'tax': 'Pajak Kendaraan',
-    };
-
-    final typeName = typeNames[doc['attachment_type']] ?? doc['attachment_type'];
-    
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.all(12),
@@ -382,50 +336,19 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       ),
       child: Row(
         children: [
-          // Thumbnail gambar
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: FutureBuilder<Widget>(
-                future: _loadImageThumbnail(doc),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return snapshot.data!;
-                  }
-                  return Container(
-                    child: Icon(
-                      Icons.image,
-                      color: Colors.grey[600],
-                      size: 30,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
+          Icon(Icons.description, color: Colors.blue[600]),
           SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  typeName,
+                  doc['attachment_type'] ?? '',
                   style: TextStyle(fontWeight: FontWeight.w500),
                 ),
                 Text(
-                  doc['file_name'],
+                  doc['file_name'] ?? '',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                Text(
-                  '${(doc['file_size'] / 1024).toStringAsFixed(1)} KB',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -442,10 +365,8 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
 
   Widget _buildVerificationCard() {
     final status = _vehicle!['verification_status'] ?? 'pending';
-    final substatus = _vehicle!['verification_substatus'] ?? 'initial';
-    final autoValidationResult = _vehicle!['auto_validation_result'];
     
-    if (status != 'pending') {
+    if (status == 'approved' || status == 'rejected') {
       return Card(
         child: Padding(
           padding: EdgeInsets.all(16),
@@ -473,25 +394,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              if (_vehicle!['verification_notes'] != null) ...[
-                SizedBox(height: 8),
-                Text('Catatan:', style: TextStyle(fontWeight: FontWeight.w500)),
-                Text(_vehicle!['verification_notes']),
-              ],
             ],
           ),
         ),
-      );
-    }
-
-    // Show auto validation results if available
-    if (autoValidationResult != null && substatus == 'needs_correction') {
-      return Column(
-        children: [
-          _buildAutoValidationCard(autoValidationResult),
-          SizedBox(height: 16),
-          _buildManualVerificationCard(),
-        ],
       );
     }
 
@@ -515,25 +420,20 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             
             Text('Keputusan Verifikasi:', style: TextStyle(fontWeight: FontWeight.w500)),
             SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
               children: [
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: Text('Setujui'),
-                    value: 'approved',
-                    groupValue: _selectedStatus,
-                    onChanged: (value) => setState(() => _selectedStatus = value!),
-                    activeColor: Colors.green,
-                  ),
+                ChoiceChip(
+                  label: Text('Setujui'),
+                  selected: _selectedStatus == 'approved',
+                  onSelected: (selected) => setState(() => _selectedStatus = 'approved'),
+                  selectedColor: Colors.green[100],
                 ),
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: Text('Tolak'),
-                    value: 'rejected',
-                    groupValue: _selectedStatus,
-                    onChanged: (value) => setState(() => _selectedStatus = value!),
-                    activeColor: Colors.red,
-                  ),
+                ChoiceChip(
+                  label: Text('Tolak'),
+                  selected: _selectedStatus == 'rejected',
+                  onSelected: (selected) => setState(() => _selectedStatus = 'rejected'),
+                  selectedColor: Colors.red[100],
                 ),
               ],
             ),
@@ -572,6 +472,104 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     );
   }
 
+  Widget _buildCrossCheckCard() {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.fact_check, color: Colors.purple[600]),
+                SizedBox(width: 8),
+                Text(
+                  'Cross-check & Validasi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildValidationButton('Cek Samsat', Icons.local_police, Colors.blue, () => _performCrossCheck('samsat')),
+                _buildValidationButton('Validasi KIR', Icons.verified, Colors.green, () => _performCrossCheck('kir')),
+                _buildValidationButton('Cek Asuransi', Icons.security, Colors.orange, () => _performCrossCheck('insurance')),
+                _buildValidationButton('Cek Duplikasi', Icons.content_copy, Colors.red, () => _performCrossCheck('duplicate')),
+              ],
+            ),
+            
+            if (_crossCheckResults.isNotEmpty) ...[ 
+              SizedBox(height: 16),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Hasil Validasi:', style: TextStyle(fontWeight: FontWeight.w500)),
+                    SizedBox(height: 8),
+                    ..._crossCheckResults.map((result) => _buildCheckResult(result)).toList(),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildValidationButton(String label, IconData icon, Color color, VoidCallback onPressed) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withOpacity(0.1),
+        foregroundColor: color,
+        elevation: 0,
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildCheckResult(Map<String, dynamic> result) {
+    Color resultColor = result['status'] == 'passed' ? Colors.green : Colors.red;
+    IconData resultIcon = result['status'] == 'passed' ? Icons.check_circle : Icons.error;
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: resultColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Icon(resultIcon, color: resultColor, size: 16),
+          SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(result['check_type'] ?? '', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12)),
+                Text(result['message'] ?? '', style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(IconData icon, String label, String? value) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6),
@@ -601,129 +599,16 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   void _viewDocument(Map<String, dynamic> doc) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          width: 400,
-          height: 500,
-          padding: EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.description, color: Colors.blue[600]),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      doc['file_name'],
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close),
-                  ),
-                ],
-              ),
-              Divider(),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Tampilkan preview gambar
-                      Container(
-                        width: 300,
-                        height: 300,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: FutureBuilder<Widget>(
-                            future: _loadImagePreview(doc),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                return snapshot.data!;
-                              }
-                              return Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text('Loading image...'),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Preview Dokumen',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'File: ${doc['file_name']}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                      Text(
-                        'Size: ${(doc['file_size'] / 1024).toStringAsFixed(1)} KB',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _downloadDocument(doc),
-                      icon: Icon(Icons.download),
-                      label: Text('Download'),
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _openDocument(doc),
-                      icon: Icon(Icons.open_in_new),
-                      label: Text('Buka'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[600],
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text('Dokumen: ${doc['file_name']}'),
+        content: Text('Preview dokumen akan ditampilkan di sini'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Tutup'),
           ),
-        ),
+        ],
       ),
-    );
-  }
-
-  void _downloadDocument(Map<String, dynamic> doc) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Mengunduh ${doc['file_name']}...')),
-    );
-  }
-
-  void _openDocument(Map<String, dynamic> doc) {
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Membuka ${doc['file_name']}...')),
     );
   }
 
@@ -761,121 +646,36 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       
       showDialog(
         context: context,
-        builder: (context) => Dialog(
-          child: Container(
-            width: 500,
-            height: 600,
-            padding: EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.history, color: Colors.blue[600]),
-                    SizedBox(width: 8),
-                    Text(
-                      'Riwayat Verifikasi',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                Divider(),
-                Expanded(
-                  child: history.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.history, size: 48, color: Colors.grey[400]),
-                              SizedBox(height: 16),
-                              Text(
-                                'Belum ada riwayat verifikasi',
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: history.length,
-                          itemBuilder: (context, index) {
-                            final item = history[index];
-                            final status = item['new_status'];
-                            Color statusColor = status == 'approved' ? Colors.green : Colors.red;
-                            
-                            return Card(
-                              margin: EdgeInsets.only(bottom: 8),
-                              child: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: statusColor.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(
-                                            status == 'approved' ? 'Disetujui' : 'Ditolak',
-                                            style: TextStyle(
-                                              color: statusColor,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        Spacer(),
-                                        Text(
-                                          item['verified_at'] ?? '',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (item['admin_name'] != null) ...[
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Admin: ${item['admin_name']}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[700],
-                                        ),
-                                      ),
-                                    ],
-                                    if (item['admin_notes'] != null && item['admin_notes'].toString().isNotEmpty) ...[
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Catatan: ${item['admin_notes']}',
-                                        style: TextStyle(fontSize: 13),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+        builder: (context) => AlertDialog(
+          title: Text('Riwayat Verifikasi'),
+          content: Container(
+            width: 400,
+            height: 300,
+            child: history.isEmpty
+                ? Center(child: Text('Belum ada riwayat verifikasi'))
+                : ListView.builder(
+                    itemCount: history.length,
+                    itemBuilder: (context, index) {
+                      final item = history[index];
+                      return ListTile(
+                        title: Text(item['new_status'] ?? ''),
+                        subtitle: Text(item['admin_notes'] ?? ''),
+                        trailing: Text(item['verified_at'] ?? ''),
+                      );
+                    },
+                  ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Tutup'),
+            ),
+          ],
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading history: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }
@@ -897,7 +697,6 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
         ),
       );
       
-      // Reload data
       await _loadVehicleDetails();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -911,305 +710,38 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     }
   }
 
-  Widget _buildAutoValidationCard(String autoValidationJson) {
+  Future<void> _performCrossCheck(String checkType) async {
     try {
-      final result = json.decode(autoValidationJson);
-      final checks = result['checks'] as List;
-      final confidence = result['confidence_score'] ?? 0.0;
+      final result = await AdminService.performCrossCheck(widget.vehicleId, checkType);
       
-      return Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_fix_high, color: Colors.blue[600]),
-                  SizedBox(width: 8),
-                  Text(
-                    'Hasil Validasi Otomatis',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Spacer(),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getConfidenceColor(confidence).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Confidence: ${(confidence * 100).toInt()}%',
-                      style: TextStyle(
-                        color: _getConfidenceColor(confidence),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              ...checks.map((check) => _buildValidationCheckItem(check)).toList(),
-            ],
-          ),
+      setState(() {
+        _crossCheckResults.removeWhere((r) => r['check_type'] == checkType);
+        _crossCheckResults.add(result);
+      });
+      
+      final status = result['status'];
+      final message = result['message'];
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: status == 'passed' ? Colors.green : Colors.red,
         ),
       );
     } catch (e) {
-      return Container();
-    }
-  }
-
-  Widget _buildValidationCheckItem(Map<String, dynamic> check) {
-    final status = check['status'];
-    Color statusColor = Colors.grey;
-    IconData statusIcon = Icons.help;
-    
-    switch (status) {
-      case 'passed':
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        break;
-      case 'failed':
-        statusColor = Colors.red;
-        statusIcon = Icons.error;
-        break;
-      case 'warning':
-        statusColor = Colors.orange;
-        statusIcon = Icons.warning;
-        break;
-    }
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: statusColor.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(8),
-        color: statusColor.withOpacity(0.05),
-      ),
-      child: Row(
-        children: [
-          Icon(statusIcon, color: statusColor, size: 20),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getCheckTypeDisplay(check['type']),
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  check['message'] ?? '',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          if (check['confidence'] != null)
-            Text(
-              '${(check['confidence'] * 100).toInt()}%',
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildManualVerificationCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.verified, color: Colors.blue[600]),
-                SizedBox(width: 8),
-                Text(
-                  'Verifikasi Manual',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            
-            Text('Keputusan Verifikasi:', style: TextStyle(fontWeight: FontWeight.w500)),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: Text('Setujui'),
-                    value: 'approved',
-                    groupValue: _selectedStatus,
-                    onChanged: (value) => setState(() => _selectedStatus = value!),
-                    activeColor: Colors.green,
-                  ),
-                ),
-                Expanded(
-                  child: RadioListTile<String>(
-                    title: Text('Tolak'),
-                    value: 'rejected',
-                    groupValue: _selectedStatus,
-                    onChanged: (value) => setState(() => _selectedStatus = value!),
-                    activeColor: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: 16),
-            Text('Catatan Verifikasi:', style: TextStyle(fontWeight: FontWeight.w500)),
-            SizedBox(height: 8),
-            TextField(
-              controller: _notesController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Tambahkan catatan untuk keputusan verifikasi...',
-              ),
-              maxLines: 3,
-            ),
-            
-            SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _isVerifying ? null : _verifyVehicle,
-                icon: _isVerifying 
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Icon(_selectedStatus == 'approved' ? Icons.check : Icons.close),
-                label: Text(_selectedStatus == 'approved' ? 'Setujui Kendaraan' : 'Tolak Kendaraan'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _selectedStatus == 'approved' ? Colors.green : Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
         ),
-      ),
-    );
-  }
-
-  Color _getConfidenceColor(double confidence) {
-    if (confidence >= 0.8) return Colors.green;
-    if (confidence >= 0.6) return Colors.orange;
-    return Colors.red;
-  }
-
-  String _getCheckTypeDisplay(String type) {
-    switch (type) {
-      case 'document_completeness': return 'Kelengkapan Dokumen';
-      case 'plate_format': return 'Format Nomor Plat';
-      case 'vin_format': return 'Format Nomor Rangka';
-      case 'duplicate_check': return 'Pengecekan Duplikasi';
-      case 'document_expiry': return 'Masa Berlaku Dokumen';
-      default: return type;
-    }
-  }
-
-  String _getDocumentTypeDisplay(String type) {
-    switch (type) {
-      case 'bpkb': return 'BPKB';
-      case 'stnk': return 'STNK';
-      case 'foto_depan': return 'Foto Depan';
-      case 'foto_belakang': return 'Foto Belakang';
-      case 'foto_samping': return 'Foto Samping';
-      default: return type.toUpperCase();
-    }
-  }
-
-  Future<Widget> _loadImageThumbnail(Map<String, dynamic> doc) async {
-    try {
-      final fileName = doc['file_name'];
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/files/$fileName'),
-        headers: await _getHeaders(),
       );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['type'] == 'base64' && data['data'] != null) {
-          return Image.memory(
-            base64Decode(data['data'].split(',')[1]),
-            fit: BoxFit.cover,
-            width: 60,
-            height: 60,
-          );
-        }
-      }
-    } catch (e) {
-      print('Error loading thumbnail: $e');
     }
-    
-    return Container(
-      child: Icon(
-        Icons.image,
-        color: Colors.grey[600],
-        size: 30,
-      ),
-    );
-  }
-
-  Future<Widget> _loadImagePreview(Map<String, dynamic> doc) async {
-    try {
-      final fileName = doc['file_name'];
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/files/$fileName'),
-        headers: await _getHeaders(),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['type'] == 'base64' && data['data'] != null) {
-          return Image.memory(
-            base64Decode(data['data'].split(',')[1]),
-            fit: BoxFit.contain,
-            width: 300,
-            height: 300,
-          );
-        }
-      }
-    } catch (e) {
-      print('Error loading preview: $e');
-    }
-    
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.image, size: 64, color: Colors.blue[400]),
-        SizedBox(height: 8),
-        Text(
-          _getDocumentTypeDisplay(doc['attachment_type']),
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.blue[600],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await AuthService.getToken();
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
   }
 
   @override
   void dispose() {
     _notesController.dispose();
+    _inspectionLocationController.dispose();
     super.dispose();
   }
 }

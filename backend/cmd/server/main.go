@@ -147,10 +147,15 @@ func main() {
 		
 		// Admin endpoints
 		api.GET("/admin/dashboard", middleware.AuthRequired(), middleware.AdminRequired(), getAdminDashboardHandler)
+		api.GET("/admin/verification-dashboard", middleware.AuthRequired(), middleware.AdminRequired(), getAdminVerificationDashboardHandler)
 		api.GET("/admin/vehicles/pending", middleware.AuthRequired(), middleware.AdminRequired(), getPendingVehiclesHandler)
+		api.GET("/admin/vehicles/status/:status", middleware.AuthRequired(), middleware.AdminRequired(), getVehiclesByStatusHandler)
 		api.GET("/admin/vehicles", middleware.AuthRequired(), middleware.AdminRequired(), getAllVehiclesAdminHandler)
 		api.GET("/admin/vehicles/:id", middleware.AuthRequired(), middleware.AdminRequired(), getVehicleDetailsAdminHandler)
 		api.PUT("/admin/vehicles/:id/verify", middleware.AuthRequired(), middleware.AdminRequired(), verifyVehicleHandler)
+		api.PUT("/admin/vehicles/:id/correction", middleware.AuthRequired(), middleware.AdminRequired(), requestCorrectionHandler)
+		api.POST("/admin/vehicles/:id/cross-check", middleware.AuthRequired(), middleware.AdminRequired(), performCrossCheckHandler)
+		api.POST("/admin/vehicles/:id/schedule-inspection", middleware.AuthRequired(), middleware.AdminRequired(), scheduleInspectionHandler)
 		api.GET("/admin/vehicles/:id/history", middleware.AuthRequired(), middleware.AdminRequired(), getVehicleVerificationHistoryHandler)
 		
 		// Enhanced dashboard endpoints
@@ -1534,4 +1539,242 @@ func getApprovedVehiclesPublicHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
+}
+// Enhanced admin verification handlers
+
+func getAdminVerificationDashboardHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	dashboard, err := services.GetAdminVerificationDashboard(conn)
+	if err != nil {
+		log.Printf("Get verification dashboard error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get verification dashboard"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"dashboard": dashboard})
+}
+
+func getVehiclesByStatusHandler(c *gin.Context) {
+	status := c.Param("status")
+	
+	// Validate status parameter
+	validStatuses := []string{"pending", "submitted", "needs_correction", "under_review", "pending_inspection", "approved", "rejected"}
+	validStatus := false
+	for _, vs := range validStatuses {
+		if status == vs {
+			validStatus = true
+			break
+		}
+	}
+	if !validStatus {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid status parameter"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	vehicles, err := services.GetVehiclesByStatus(conn, status)
+	if err != nil {
+		log.Printf("Get vehicles by status error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get vehicles"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles, "status": status, "count": len(vehicles)})
+}
+
+func requestCorrectionHandler(c *gin.Context) {
+	vehicleIDStr := c.Param("id")
+	vehicleID, err := strconv.Atoi(vehicleIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid vehicle ID"})
+		return
+	}
+
+	var req struct {
+		Notes           string   `json:"notes" binding:"required"`
+		CorrectionItems []string `json:"correction_items" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	// Get admin user ID from context
+	adminID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin authentication required"})
+		return
+	}
+
+	adminIDInt, ok := adminID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid admin ID"})
+		return
+	}
+
+	err = services.UpdateVehicleWithCorrection(conn, vehicleID, req.CorrectionItems, req.Notes, adminIDInt)
+	if err != nil {
+		log.Printf("Update vehicle correction error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Send notification to vehicle owner
+	go func() {
+		notificationService := services.NewNotificationService(conn)
+		extraVars := map[string]interface{}{
+			"correction_items": strings.Join(req.CorrectionItems, ", "),
+		}
+		err := notificationService.SendVehicleNotification(vehicleID, "needs_correction", extraVars)
+		if err != nil {
+			log.Printf("Failed to send correction notification: %v", err)
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{"message": "Correction request sent successfully"})
+}
+
+func performCrossCheckHandler(c *gin.Context) {
+	vehicleIDStr := c.Param("id")
+	vehicleID, err := strconv.Atoi(vehicleIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid vehicle ID"})
+		return
+	}
+
+	var req struct {
+		CheckType string `json:"check_type" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Validate check type
+	validCheckTypes := []string{"samsat", "kir", "insurance", "duplicate"}
+	validCheckType := false
+	for _, vct := range validCheckTypes {
+		if req.CheckType == vct {
+			validCheckType = true
+			break
+		}
+	}
+	if !validCheckType {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid check type"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	result, err := services.PerformCrossCheck(conn, vehicleID, req.CheckType)
+	if err != nil {
+		log.Printf("Cross-check error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": result})
+}
+
+func scheduleInspectionHandler(c *gin.Context) {
+	vehicleIDStr := c.Param("id")
+	vehicleID, err := strconv.Atoi(vehicleIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid vehicle ID"})
+		return
+	}
+
+	var req struct {
+		InspectionDate string `json:"inspection_date" binding:"required"`
+		Location       string `json:"location" binding:"required"`
+		Notes          string `json:"notes"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Parse inspection date
+	inspectionDate, err := time.Parse("2006-01-02T15:04:05Z", req.InspectionDate)
+	if err != nil {
+		// Try alternative format
+		inspectionDate, err = time.Parse("2006-01-02 15:04:05", req.InspectionDate)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+			return
+		}
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	// Get admin user ID from context
+	adminID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin authentication required"})
+		return
+	}
+
+	adminIDInt, ok := adminID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid admin ID"})
+		return
+	}
+
+	err = services.ScheduleInspection(conn, vehicleID, inspectionDate, req.Location, adminIDInt)
+	if err != nil {
+		log.Printf("Schedule inspection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Send notification to vehicle owner
+	go func() {
+		notificationService := services.NewNotificationService(conn)
+		extraVars := map[string]interface{}{
+			"date":     inspectionDate.Format("2006-01-02 15:04"),
+			"location": req.Location,
+		}
+		err := notificationService.SendVehicleNotification(vehicleID, "inspection_scheduled", extraVars)
+		if err != nil {
+			log.Printf("Failed to send inspection notification: %v", err)
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Inspection scheduled successfully",
+		"inspection_date": inspectionDate,
+		"location": req.Location,
+	})
 }

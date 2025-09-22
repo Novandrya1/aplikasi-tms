@@ -3,6 +3,7 @@ import 'warehouse_management_screen.dart';
 import 'transport_management_screen.dart';
 import 'order_management_screen.dart';
 import 'admin_vehicles_screen.dart';
+import 'admin_verification_dashboard_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -129,12 +130,12 @@ class AdminDashboardScreen extends StatelessWidget {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               children: [
-                _buildAdminCard('Verifikasi\nKendaraan', Icons.verified, Colors.orange, () {
+                _buildAdminCard('Verifikasi\nArmada', Icons.verified, Colors.orange, () {
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => AdminVehiclesScreen(filter: 'pending'),
+                    builder: (context) => const AdminVerificationDashboardScreen(),
                   ));
                 }),
-                _buildAdminCard('Semua\nKendaraan', Icons.directions_car, Colors.blue, () {
+                _buildAdminCard('Kelola\nKendaraan', Icons.directions_car, Colors.blue, () {
                   Navigator.push(context, MaterialPageRoute(
                     builder: (context) => AdminVehiclesScreen(filter: 'all'),
                   ));

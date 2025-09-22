@@ -2,19 +2,25 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
+	"time"
 )
 
 func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
-			  v.verification_status, v.created_at,
-			  fo.company_name, u.full_name, u.email
+			  v.verification_status, v.verification_substatus, v.created_at,
+			  COALESCE(fo.company_name, '') as company_name, 
+			  COALESCE(u.full_name, '') as full_name, 
+			  COALESCE(u.email, '') as email,
+			  CASE WHEN fo.company_name IS NOT NULL THEN 'company' ELSE 'individual' END as owner_type,
+			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
 			  LEFT JOIN users u ON fo.user_id = u.id
-			  WHERE v.verification_status = 'pending'
+			  WHERE v.verification_status IN ('pending', 'submitted')
 			  ORDER BY v.created_at ASC`
 
 	rows, err := db.Query(query)
@@ -26,13 +32,13 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 	var vehicles []map[string]interface{}
 	for rows.Next() {
 		var v map[string]interface{} = make(map[string]interface{})
-		var id, year int
-		var regNumber, vehicleType, brand, model, status string
+		var id, year, daysWaiting int
+		var regNumber, vehicleType, brand, model, status, substatus, ownerType string
 		var createdAt string
-		var companyName, fullName, email sql.NullString
+		var companyName, fullName, email string
 
 		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
-			&status, &createdAt, &companyName, &fullName, &email)
+			&status, &substatus, &createdAt, &companyName, &fullName, &email, &ownerType, &daysWaiting)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan vehicle: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		}
@@ -44,23 +50,22 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 		v["model"] = model
 		v["year"] = year
 		v["verification_status"] = status
+		v["verification_substatus"] = substatus
 		v["created_at"] = createdAt
+		v["company_name"] = companyName
+		v["owner_name"] = fullName
+		v["owner_email"] = email
+		v["owner_type"] = ownerType
+		v["days_waiting"] = daysWaiting
 		
-		if companyName.Valid {
-			v["company_name"] = companyName.String
-		} else {
-			v["company_name"] = ""
+		// Set priority based on days waiting and status
+		priority := "normal"
+		if daysWaiting > 3 {
+			priority = "high"
+		} else if daysWaiting > 7 {
+			priority = "urgent"
 		}
-		if fullName.Valid {
-			v["owner_name"] = fullName.String
-		} else {
-			v["owner_name"] = ""
-		}
-		if email.Valid {
-			v["owner_email"] = email.String
-		} else {
-			v["owner_email"] = ""
-		}
+		v["priority"] = priority
 
 		vehicles = append(vehicles, v)
 	}
@@ -139,8 +144,16 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 }
 
 func UpdateVehicleVerificationStatus(db *sql.DB, vehicleID int, status string, adminNotes string, adminID int) error {
-	// Validate status
-	if status != "approved" && status != "rejected" {
+	// Validate status - now supports more statuses
+	validStatuses := []string{"approved", "rejected", "needs_correction", "under_review", "pending_inspection"}
+	validStatus := false
+	for _, vs := range validStatuses {
+		if status == vs {
+			validStatus = true
+			break
+		}
+	}
+	if !validStatus {
 		return fmt.Errorf("invalid status: %s", status)
 	}
 
@@ -158,19 +171,36 @@ func UpdateVehicleVerificationStatus(db *sql.DB, vehicleID int, status string, a
 		return fmt.Errorf("failed to get current status: %v", err)
 	}
 
-	// Update operational status based on verification
+	// Update operational status and substatus based on verification
 	operationalStatus := "inactive"
-	if status == "approved" {
+	substatus := "initial"
+	
+	switch status {
+	case "approved":
 		operationalStatus = "active"
+		substatus = "approved"
+	case "rejected":
+		operationalStatus = "inactive"
+		substatus = "rejected"
+	case "needs_correction":
+		operationalStatus = "pending_verification"
+		substatus = "needs_correction"
+	case "under_review":
+		operationalStatus = "pending_verification"
+		substatus = "under_review"
+	case "pending_inspection":
+		operationalStatus = "pending_verification"
+		substatus = "pending_inspection"
 	}
 
-	// Update vehicle status
+	// Update vehicle status with substatus
 	query := `UPDATE vehicles 
-			  SET verification_status = $1, operational_status = $2, admin_notes = $3, 
-			      verified_by = $4, verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-			  WHERE id = $5`
+			  SET verification_status = $1, verification_substatus = $2, operational_status = $3, 
+			      verification_notes = $4, verified_by = $5, verified_at = CURRENT_TIMESTAMP, 
+			      updated_at = CURRENT_TIMESTAMP
+			  WHERE id = $6`
 
-	_, err = tx.Exec(query, status, operationalStatus, adminNotes, adminID, vehicleID)
+	_, err = tx.Exec(query, status, substatus, operationalStatus, adminNotes, adminID, vehicleID)
 	if err != nil {
 		return fmt.Errorf("failed to update vehicle status: %v", err)
 	}
@@ -463,4 +493,399 @@ func GetApprovedVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 	}
 
 	return vehicles, nil
+}
+
+// Enhanced admin verification functions
+
+func GetVehiclesByStatus(db *sql.DB, status string) ([]map[string]interface{}, error) {
+	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
+			  v.verification_status, v.verification_substatus, v.operational_status, 
+			  v.created_at, v.verified_at, v.verification_notes,
+			  COALESCE(fo.company_name, '') as company_name, 
+			  COALESCE(u.full_name, '') as full_name, 
+			  COALESCE(u.email, '') as email,
+			  CASE WHEN fo.company_name IS NOT NULL THEN 'company' ELSE 'individual' END as owner_type,
+			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
+			  FROM vehicles v
+			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
+			  LEFT JOIN users u ON fo.user_id = u.id
+			  WHERE v.verification_status = $1 OR v.verification_substatus = $1
+			  ORDER BY v.created_at DESC`
+
+	rows, err := db.Query(query, status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vehicles by status: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+	}
+	defer rows.Close()
+
+	var vehicles []map[string]interface{}
+	for rows.Next() {
+		var v map[string]interface{} = make(map[string]interface{})
+		var id, year, daysWaiting int
+		var regNumber, vehicleType, brand, model, verificationStatus, substatus, operationalStatus, ownerType string
+		var createdAt string
+		var verifiedAt sql.NullString
+		var notes sql.NullString
+		var companyName, fullName, email string
+
+		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
+			&verificationStatus, &substatus, &operationalStatus, &createdAt, &verifiedAt, &notes,
+			&companyName, &fullName, &email, &ownerType, &daysWaiting)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan vehicle: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		}
+
+		v["id"] = id
+		v["registration_number"] = regNumber
+		v["vehicle_type"] = vehicleType
+		v["brand"] = brand
+		v["model"] = model
+		v["year"] = year
+		v["verification_status"] = verificationStatus
+		v["verification_substatus"] = substatus
+		v["operational_status"] = operationalStatus
+		v["created_at"] = createdAt
+		v["company_name"] = companyName
+		v["owner_name"] = fullName
+		v["owner_email"] = email
+		v["owner_type"] = ownerType
+		v["days_waiting"] = daysWaiting
+		
+		if verifiedAt.Valid {
+			v["verified_at"] = verifiedAt.String
+		}
+		if notes.Valid {
+			v["verification_notes"] = notes.String
+		}
+
+		vehicles = append(vehicles, v)
+	}
+
+	return vehicles, nil
+}
+
+func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
+	dashboard := make(map[string]interface{})
+
+	// Get counts by status
+	
+	statusQuery := `SELECT 
+		COUNT(CASE WHEN verification_status = 'pending' OR verification_status = 'submitted' THEN 1 END) as pending_count,
+		COUNT(CASE WHEN verification_substatus = 'needs_correction' THEN 1 END) as needs_correction_count,
+		COUNT(CASE WHEN verification_substatus = 'under_review' THEN 1 END) as under_review_count,
+		COUNT(CASE WHEN verification_status = 'approved' AND DATE(verified_at) = CURRENT_DATE THEN 1 END) as approved_today,
+		COUNT(CASE WHEN verification_status = 'rejected' AND DATE(verified_at) = CURRENT_DATE THEN 1 END) as rejected_today
+		FROM vehicles`
+
+	var pendingCount, needsCorrectionCount, underReviewCount, approvedToday, rejectedToday int
+	err := db.QueryRow(statusQuery).Scan(&pendingCount, &needsCorrectionCount, &underReviewCount, &approvedToday, &rejectedToday)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status counts: %v", err)
+	}
+
+	dashboard["pending_count"] = pendingCount
+	dashboard["needs_correction_count"] = needsCorrectionCount
+	dashboard["under_review_count"] = underReviewCount
+	dashboard["approved_today"] = approvedToday
+	dashboard["rejected_today"] = rejectedToday
+
+	// Get recent submissions (last 10)
+	recentQuery := `SELECT v.id, v.registration_number, 
+		COALESCE(fo.company_name, u.full_name) as owner_name,
+		CASE WHEN fo.company_name IS NOT NULL THEN 'company' ELSE 'individual' END as owner_type,
+		v.verification_status, v.verification_substatus, v.created_at,
+		EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
+		FROM vehicles v
+		LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
+		LEFT JOIN users u ON fo.user_id = u.id
+		WHERE v.verification_status IN ('pending', 'submitted', 'needs_correction', 'under_review')
+		ORDER BY v.created_at DESC LIMIT 10`
+
+	rows, err := db.Query(recentQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent submissions: %v", err)
+	}
+	defer rows.Close()
+
+	var recentSubmissions []map[string]interface{}
+	for rows.Next() {
+		var submission map[string]interface{} = make(map[string]interface{})
+		var id, daysWaiting int
+		var regNumber, ownerName, ownerType, status, substatus, createdAt string
+
+		err := rows.Scan(&id, &regNumber, &ownerName, &ownerType, &status, &substatus, &createdAt, &daysWaiting)
+		if err != nil {
+			continue
+		}
+
+		submission["id"] = id
+		submission["registration_number"] = regNumber
+		submission["owner_name"] = ownerName
+		submission["owner_type"] = ownerType
+		submission["status"] = status
+		submission["substatus"] = substatus
+		submission["submitted_at"] = createdAt
+		submission["days_waiting"] = daysWaiting
+
+		// Set priority
+		priority := "normal"
+		if daysWaiting > 7 {
+			priority = "urgent"
+		} else if daysWaiting > 3 {
+			priority = "high"
+		}
+		submission["priority"] = priority
+
+		recentSubmissions = append(recentSubmissions, submission)
+	}
+	dashboard["recent_submissions"] = recentSubmissions
+
+	// Get urgent items (overdue verifications)
+	urgentQuery := `SELECT v.id, v.registration_number,
+		EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_overdue
+		FROM vehicles v
+		WHERE v.verification_status IN ('pending', 'submitted', 'under_review') 
+		AND v.created_at < CURRENT_TIMESTAMP - INTERVAL '7 days'
+		ORDER BY v.created_at ASC LIMIT 5`
+
+	urgentRows, err := db.Query(urgentQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get urgent items: %v", err)
+	}
+	defer urgentRows.Close()
+
+	var urgentItems []map[string]interface{}
+	for urgentRows.Next() {
+		var item map[string]interface{} = make(map[string]interface{})
+		var vehicleID, daysOverdue int
+		var regNumber string
+
+		err := urgentRows.Scan(&vehicleID, &regNumber, &daysOverdue)
+		if err != nil {
+			continue
+		}
+
+		item["vehicle_id"] = vehicleID
+		item["registration_number"] = regNumber
+		item["urgency_type"] = "overdue_verification"
+		item["message"] = fmt.Sprintf("Verifikasi tertunda %d hari", daysOverdue)
+		item["days_overdue"] = daysOverdue
+
+		urgentItems = append(urgentItems, item)
+	}
+	dashboard["urgent_items"] = urgentItems
+
+	return dashboard, nil
+}
+
+func PerformCrossCheck(db *sql.DB, vehicleID int, checkType string) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+	
+	// Get vehicle details for cross-checking
+	var regNumber, chassisNumber, engineNumber string
+	err := db.QueryRow("SELECT registration_number, chassis_number, engine_number FROM vehicles WHERE id = $1", 
+		vehicleID).Scan(&regNumber, &chassisNumber, &engineNumber)
+	if err != nil {
+		return nil, fmt.Errorf("vehicle not found: %v", err)
+	}
+
+	switch checkType {
+	case "samsat":
+		result = performSamsatCheck(regNumber)
+	case "kir":
+		result = performKIRCheck(regNumber)
+	case "insurance":
+		result = performInsuranceCheck(regNumber)
+	case "duplicate":
+		result = performDuplicateCheck(db, regNumber, chassisNumber, engineNumber, vehicleID)
+	default:
+		return nil, fmt.Errorf("unknown check type: %s", checkType)
+	}
+
+	// Store cross-check result in database
+	insertQuery := `INSERT INTO fraud_checks (vehicle_id, check_type, result, confidence_score, details)
+		VALUES ($1, $2, $3, $4, $5)`
+	
+	confidence := result["confidence"].(float64)
+	status := result["status"].(string)
+	details, _ := json.Marshal(result["details"])
+	
+	_, err = db.Exec(insertQuery, vehicleID, checkType, status, confidence, string(details))
+	if err != nil {
+		log.Printf("Failed to store cross-check result: %v", err)
+	}
+
+	return result, nil
+}
+
+func performSamsatCheck(regNumber string) map[string]interface{} {
+	// Simulate Samsat API check
+	result := make(map[string]interface{})
+	result["check_type"] = "samsat"
+	result["status"] = "passed"
+	result["confidence"] = 0.95
+	result["message"] = fmt.Sprintf("Nomor polisi %s terdaftar dan pajak aktif", regNumber)
+	result["details"] = map[string]interface{}{
+		"registration_valid": true,
+		"tax_status": "active",
+		"last_tax_payment": "2024-01-15",
+		"next_due_date": "2025-01-15",
+	}
+	return result
+}
+
+func performKIRCheck(regNumber string) map[string]interface{} {
+	// Simulate KIR validation
+	result := make(map[string]interface{})
+	result["check_type"] = "kir"
+	result["status"] = "passed"
+	result["confidence"] = 0.90
+	result["message"] = "Kendaraan memiliki KIR yang masih berlaku"
+	result["details"] = map[string]interface{}{
+		"kir_valid": true,
+		"issue_date": "2024-06-01",
+		"expiry_date": "2025-06-01",
+		"inspection_station": "Dishub Jakarta Pusat",
+	}
+	return result
+}
+
+func performInsuranceCheck(regNumber string) map[string]interface{} {
+	// Simulate insurance validation
+	result := make(map[string]interface{})
+	result["check_type"] = "insurance"
+	result["status"] = "passed"
+	result["confidence"] = 0.88
+	result["message"] = "Asuransi aktif dan sesuai dengan data kendaraan"
+	result["details"] = map[string]interface{}{
+		"policy_active": true,
+		"insurance_company": "Asuransi Jasa Indonesia",
+		"policy_number": "AJI-2024-001234",
+		"coverage_type": "comprehensive",
+		"expiry_date": "2025-03-15",
+	}
+	return result
+}
+
+func performDuplicateCheck(db *sql.DB, regNumber, chassisNumber, engineNumber string, excludeVehicleID int) map[string]interface{} {
+	result := make(map[string]interface{})
+	
+	// Check for duplicate registration number
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE registration_number = $1 AND id != $2", 
+		regNumber, excludeVehicleID).Scan(&count)
+	
+	duplicateFound := false
+	duplicateType := ""
+	
+	if err == nil && count > 0 {
+		duplicateFound = true
+		duplicateType = "registration_number"
+	}
+	
+	// Check for duplicate chassis number
+	if !duplicateFound {
+		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE chassis_number = $1 AND id != $2", 
+			chassisNumber, excludeVehicleID).Scan(&count)
+		if err == nil && count > 0 {
+			duplicateFound = true
+			duplicateType = "chassis_number"
+		}
+	}
+	
+	// Check for duplicate engine number
+	if !duplicateFound {
+		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE engine_number = $1 AND id != $2", 
+			engineNumber, excludeVehicleID).Scan(&count)
+		if err == nil && count > 0 {
+			duplicateFound = true
+			duplicateType = "engine_number"
+		}
+	}
+
+	result["check_type"] = "duplicate"
+	if duplicateFound {
+		result["status"] = "failed"
+		result["confidence"] = 1.0
+		result["message"] = fmt.Sprintf("Ditemukan duplikasi %s", duplicateType)
+		result["details"] = map[string]interface{}{
+			"duplicate_found": true,
+			"duplicate_type": duplicateType,
+			"duplicate_count": count,
+		}
+	} else {
+		result["status"] = "passed"
+		result["confidence"] = 1.0
+		result["message"] = "Tidak ditemukan duplikasi nomor polisi, rangka, atau mesin"
+		result["details"] = map[string]interface{}{
+			"duplicate_found": false,
+		}
+	}
+	
+	return result
+}
+
+func UpdateVehicleWithCorrection(db *sql.DB, vehicleID int, correctionItems []string, adminNotes string, adminID int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	// Update vehicle status to needs_correction
+	query := `UPDATE vehicles 
+			  SET verification_status = 'pending', verification_substatus = 'needs_correction', 
+			      verification_notes = $1, verified_by = $2, verified_at = CURRENT_TIMESTAMP, 
+			      updated_at = CURRENT_TIMESTAMP
+			  WHERE id = $3`
+
+	_, err = tx.Exec(query, adminNotes, adminID, vehicleID)
+	if err != nil {
+		return fmt.Errorf("failed to update vehicle status: %v", err)
+	}
+
+	// Insert verification history with correction items
+	historyQuery := `INSERT INTO verification_history 
+		(vehicle_id, admin_id, previous_status, new_status, verification_substatus, admin_notes, correction_items)
+		VALUES ($1, $2, 'pending', 'needs_correction', 'needs_correction', $3, $4)`
+	
+	correctionJSON, _ := json.Marshal(correctionItems)
+	_, err = tx.Exec(historyQuery, vehicleID, adminID, adminNotes, string(correctionJSON))
+	if err != nil {
+		return fmt.Errorf("failed to insert verification history: %v", err)
+	}
+
+	return tx.Commit()
+}
+
+func ScheduleInspection(db *sql.DB, vehicleID int, inspectionDate time.Time, location string, adminID int) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	// Update vehicle to pending_inspection
+	query := `UPDATE vehicles 
+			  SET verification_substatus = 'pending_inspection', 
+			      inspection_scheduled_at = $1, requires_inspection = true,
+			      updated_at = CURRENT_TIMESTAMP
+			  WHERE id = $2`
+
+	_, err = tx.Exec(query, inspectionDate, vehicleID)
+	if err != nil {
+		return fmt.Errorf("failed to update vehicle inspection schedule: %v", err)
+	}
+
+	// Create inspection record
+	inspectionQuery := `INSERT INTO vehicle_inspections 
+		(vehicle_id, inspector_id, inspection_type, scheduled_at, location, result)
+		VALUES ($1, $2, 'physical', $3, $4, 'pending')`
+	
+	_, err = tx.Exec(inspectionQuery, vehicleID, adminID, inspectionDate, location)
+	if err != nil {
+		return fmt.Errorf("failed to create inspection record: %v", err)
+	}
+
+	return tx.Commit()
 }

@@ -103,7 +103,84 @@ type VehicleAttachment struct {
 }
 
 type VehicleResponse struct {
-	Vehicle     Vehicle             `json:"vehicle"`
-	Attachments []VehicleAttachment `json:"attachments"`
-	Inspections []VehicleInspection `json:"inspections,omitempty"`
+	Vehicle          Vehicle               `json:"vehicle"`
+	Attachments      []VehicleAttachment   `json:"attachments"`
+	Inspections      []VehicleInspection   `json:"inspections,omitempty"`
+	CrossCheckResults []CrossCheckResult   `json:"cross_check_results,omitempty"`
+	OwnerInfo        *FleetOwnerInfo       `json:"owner_info,omitempty"`
+}
+
+// Enhanced verification request
+type VehicleVerificationRequest struct {
+	Status           string                 `json:"status" binding:"required"`
+	Notes            string                 `json:"notes"`
+	CorrectionItems  []string               `json:"correction_items,omitempty"`
+	RequiresInspection bool                 `json:"requires_inspection"`
+	ValidationChecks map[string]interface{} `json:"validation_checks,omitempty"`
+}
+
+// Cross-check results
+type CrossCheckResult struct {
+	CheckType    string                 `json:"check_type"`
+	Status       string                 `json:"status"`
+	Message      string                 `json:"message"`
+	Details      map[string]interface{} `json:"details,omitempty"`
+	CheckedAt    time.Time              `json:"checked_at"`
+}
+
+type FleetOwnerInfo struct {
+	ID              int    `json:"id"`
+	CompanyName     string `json:"company_name"`
+	BusinessLicense string `json:"business_license"`
+	Address         string `json:"address"`
+	Phone           string `json:"phone"`
+	Email           string `json:"email"`
+	OwnerName       string `json:"owner_name"`
+	OwnerType       string `json:"owner_type"` // "individual" or "company"
+	Verified        bool   `json:"verified"`
+}
+
+// Admin verification dashboard models
+type AdminVerificationDashboard struct {
+	PendingCount      int                    `json:"pending_count"`
+	NeedsCorrectionCount int                 `json:"needs_correction_count"`
+	UnderReviewCount  int                    `json:"under_review_count"`
+	ApprovedToday     int                    `json:"approved_today"`
+	RejectedToday     int                    `json:"rejected_today"`
+	RecentSubmissions []VehicleSubmission    `json:"recent_submissions"`
+	UrgentItems       []UrgentVerificationItem `json:"urgent_items"`
+}
+
+type VehicleSubmission struct {
+	ID               int    `json:"id"`
+	RegistrationNumber string `json:"registration_number"`
+	CompanyName      string `json:"company_name"`
+	OwnerName        string `json:"owner_name"`
+	OwnerType        string `json:"owner_type"`
+	Status           string `json:"status"`
+	Substatus        string `json:"substatus"`
+	SubmittedAt      string `json:"submitted_at"`
+	DaysWaiting      int    `json:"days_waiting"`
+	Priority         string `json:"priority"`
+}
+
+type UrgentVerificationItem struct {
+	VehicleID        int    `json:"vehicle_id"`
+	RegistrationNumber string `json:"registration_number"`
+	UrgencyType      string `json:"urgency_type"`
+	Message          string `json:"message"`
+	DaysOverdue      int    `json:"days_overdue"`
+}
+
+// Notification models for verification workflow
+type VerificationNotification struct {
+	ID          int                    `json:"id"`
+	VehicleID   int                    `json:"vehicle_id"`
+	UserID      int                    `json:"user_id"`
+	Type        string                 `json:"type"`
+	Title       string                 `json:"title"`
+	Message     string                 `json:"message"`
+	Data        map[string]interface{} `json:"data,omitempty"`
+	Read        bool                   `json:"read"`
+	CreatedAt   time.Time              `json:"created_at"`
 }
