@@ -1365,6 +1365,13 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
         throw Exception('Data kendaraan belum lengkap');
       }
 
+      // Validate required fields based on type
+      if (_selectedType == 'company') {
+        if (_companyNameController.text.isEmpty || _businessLicenseController.text.isEmpty) {
+          throw Exception('Data perusahaan belum lengkap');
+        }
+      }
+
       // Register fleet owner first
       final fleetRequest = FleetOwnerRequest(
         companyName: _selectedType == 'company' ? _companyNameController.text : _nameController.text,
@@ -1380,16 +1387,16 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
 
       // Register vehicle for verification
       final vehicleRequest = {
-        'registration_number': _plateController.text,
-        'vehicle_type': _vehicleTypeController.text,
-        'brand': _brandController.text,
-        'model': _brandController.text,
+        'registration_number': _plateController.text.trim(),
+        'vehicle_type': _vehicleTypeController.text.trim(),
+        'brand': _brandController.text.trim(),
+        'model': _brandController.text.trim(),
         'year': int.tryParse(_yearController.text) ?? 2020,
-        'chassis_number': _chassisController.text,
-        'engine_number': _engineController.text,
-        'color': _colorController.text,
-        'capacity_weight': double.tryParse(_capacityController.text) ?? 0.0,
-        'capacity_volume': 0.0,
+        'chassis_number': _chassisController.text.trim(),
+        'engine_number': _engineController.text.trim(),
+        'color': _colorController.text.trim(),
+        'capacity_weight': double.tryParse(_capacityController.text) ?? 1000.0,
+        'capacity_volume': 10.0,
         'ownership_status': 'owned',
         'operational_status': 'pending_verification',
       };
@@ -1408,9 +1415,13 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       Navigator.of(context).pop();
     } catch (e) {
       print('Registration error: $e');
+      String errorMessage = e.toString();
+      if (errorMessage.contains('Exception:')) {
+        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.toString()}'),
+          content: Text('Error: $errorMessage'),
           backgroundColor: Colors.red,
         ),
       );

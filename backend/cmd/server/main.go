@@ -1183,9 +1183,14 @@ func recordTripTrackingHandler(c *gin.Context) {
 func registerFleetOwnerHandler(c *gin.Context) {
 	var req models.FleetOwnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		log.Printf("Fleet registration binding error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
 		return
 	}
+	
+	// Log the received request for debugging
+	log.Printf("Fleet registration request: CompanyName=%s, Address=%s, Phone=%s, Email=%s", 
+		req.CompanyName, req.Address, req.PhoneNumber, req.Email)
 	
 	userID, exists := c.Get("user_id")
 	if !exists {

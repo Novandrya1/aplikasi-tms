@@ -16,18 +16,30 @@ class FleetService {
   }
 
   static Future<FleetOwner> registerFleetOwner(FleetOwnerRequest request) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/fleet/register'),
-      headers: await _getHeaders(),
-      body: jsonEncode(request.toJson()),
-    );
+    try {
+      print('Sending request to: $baseUrl/fleet/register');
+      print('Request headers: ${await _getHeaders()}');
+      print('Request body: ${jsonEncode(request.toJson())}');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/fleet/register'),
+        headers: await _getHeaders(),
+        body: jsonEncode(request.toJson()),
+      );
 
-    if (response.statusCode == 201) {
-      final data = json.decode(response.body);
-      return FleetOwner.fromJson(data['fleet_owner']);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to register fleet owner');
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return FleetOwner.fromJson(data['fleet_owner']);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to register fleet owner');
+      }
+    } catch (e) {
+      print('Fleet registration error: $e');
+      rethrow;
     }
   }
 
