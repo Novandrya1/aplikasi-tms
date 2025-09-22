@@ -3,7 +3,7 @@ import '../services/admin_service.dart';
 import 'vehicle_verification_detail_screen.dart';
 
 class AdminVehiclesScreen extends StatefulWidget {
-  final String filter; // 'pending', 'all'
+  final String filter; // 'pending', 'all', 'history'
 
   const AdminVehiclesScreen({super.key, required this.filter});
 
@@ -27,6 +27,9 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
       List<Map<String, dynamic>> vehicles;
       if (widget.filter == 'pending') {
         vehicles = await AdminService.getPendingVehicles();
+      } else if (widget.filter == 'history') {
+        // Tampilkan semua kendaraan untuk riwayat verifikasi
+        vehicles = await AdminService.getAllVehicles();
       } else {
         // Hanya tampilkan kendaraan yang disetujui
         final allVehicles = await AdminService.getAllVehicles();
@@ -47,7 +50,17 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.filter == 'pending' ? 'Verifikasi Kendaraan' : 'Semua Kendaraan';
+    String title;
+    switch (widget.filter) {
+      case 'pending':
+        title = 'Verifikasi Kendaraan';
+        break;
+      case 'history':
+        title = 'Riwayat Verifikasi';
+        break;
+      default:
+        title = 'Semua Kendaraan';
+    }
     
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +97,11 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            widget.filter == 'pending' ? Icons.pending_actions : Icons.directions_car_outlined,
+            widget.filter == 'pending' 
+                ? Icons.pending_actions 
+                : widget.filter == 'history'
+                    ? Icons.history
+                    : Icons.directions_car_outlined,
             size: 64,
             color: Colors.grey[400],
           ),
@@ -92,7 +109,9 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
           Text(
             widget.filter == 'pending' 
                 ? 'Tidak Ada Kendaraan Pending'
-                : 'Tidak Ada Kendaraan',
+                : widget.filter == 'history'
+                    ? 'Tidak Ada Riwayat Verifikasi'
+                    : 'Tidak Ada Kendaraan',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -103,7 +122,9 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
           Text(
             widget.filter == 'pending'
                 ? 'Semua kendaraan sudah diverifikasi'
-                : 'Belum ada kendaraan yang terdaftar',
+                : widget.filter == 'history'
+                    ? 'Belum ada riwayat verifikasi kendaraan'
+                    : 'Belum ada kendaraan yang disetujui',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey[500]),
           ),

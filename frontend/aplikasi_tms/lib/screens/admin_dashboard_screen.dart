@@ -16,6 +16,15 @@ class AdminDashboardScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (context) => AdminVehiclesScreen(filter: 'history'),
+              ));
+            },
+            tooltip: 'Riwayat Verifikasi',
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
           ),
