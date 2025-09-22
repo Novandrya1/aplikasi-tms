@@ -60,6 +60,11 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
         backgroundColor: Colors.red[600],
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            onPressed: _showVerificationHistory,
+            icon: Icon(Icons.history),
+            tooltip: 'Riwayat Verifikasi',
+          ),
           if (_vehicle?['verification_status'] == 'pending')
             IconButton(
               onPressed: _showQuickVerificationDialog,
@@ -626,6 +631,131 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
         ],
       ),
     );
+  }
+
+  void _showVerificationHistory() async {
+    try {
+      final history = await AdminService.getVerificationHistory(widget.vehicleId);
+      
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          child: Container(
+            width: 500,
+            height: 600,
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.history, color: Colors.blue[600]),
+                    SizedBox(width: 8),
+                    Text(
+                      'Riwayat Verifikasi',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                Divider(),
+                Expanded(
+                  child: history.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.history, size: 48, color: Colors.grey[400]),
+                              SizedBox(height: 16),
+                              Text(
+                                'Belum ada riwayat verifikasi',
+                                style: TextStyle(color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: history.length,
+                          itemBuilder: (context, index) {
+                            final item = history[index];
+                            final status = item['new_status'];
+                            Color statusColor = status == 'approved' ? Colors.green : Colors.red;
+                            
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            status == 'approved' ? 'Disetujui' : 'Ditolak',
+                                            style: TextStyle(
+                                              color: statusColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        Spacer(),
+                                        Text(
+                                          item['verified_at'] ?? '',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (item['admin_name'] != null) ...[
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Admin: ${item['admin_name']}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
+                                    if (item['admin_notes'] != null && item['admin_notes'].toString().isNotEmpty) ...[
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Catatan: ${item['admin_notes']}',
+                                        style: TextStyle(fontSize: 13),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading history: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _verifyVehicle() async {

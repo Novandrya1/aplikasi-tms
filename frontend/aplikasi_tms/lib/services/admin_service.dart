@@ -114,4 +114,22 @@ class AdminService {
       throw Exception(error['error'] ?? 'Failed to get vehicle attachments');
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getVerificationHistory(int vehicleId) async {
+    final token = await AuthService.getToken();
+    if (token == null) throw Exception('No authentication token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/history'),
+      headers: ApiConfig.authHeaders(token),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return List<Map<String, dynamic>>.from(data['history'] ?? []);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to get verification history');
+    }
+  }
 }

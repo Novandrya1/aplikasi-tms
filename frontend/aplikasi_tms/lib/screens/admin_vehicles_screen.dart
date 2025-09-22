@@ -28,7 +28,9 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
       if (widget.filter == 'pending') {
         vehicles = await AdminService.getPendingVehicles();
       } else {
-        vehicles = await AdminService.getAllVehicles();
+        // Hanya tampilkan kendaraan yang disetujui
+        final allVehicles = await AdminService.getAllVehicles();
+        vehicles = allVehicles.where((v) => v['verification_status'] == 'approved').toList();
       }
       
       setState(() {
