@@ -104,18 +104,56 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
 
   Widget _buildVehicleInfoCard() {
     final status = _vehicle!['verification_status'] ?? 'pending';
+    final substatus = _vehicle!['verification_substatus'] ?? 'initial';
+    
     Color statusColor = Colors.orange;
     String statusText = 'Menunggu Verifikasi';
     IconData statusIcon = Icons.pending;
     
-    if (status == 'approved') {
-      statusColor = Colors.green;
-      statusText = 'Disetujui';
-      statusIcon = Icons.check_circle;
-    } else if (status == 'rejected') {
-      statusColor = Colors.red;
-      statusText = 'Ditolak';
-      statusIcon = Icons.cancel;
+    // Enhanced status handling
+    switch (status) {
+      case 'approved':
+        statusColor = Colors.green;
+        statusText = 'Disetujui';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusText = 'Ditolak';
+        statusIcon = Icons.cancel;
+        break;
+      case 'pending':
+        switch (substatus) {
+          case 'auto_validating':
+            statusColor = Colors.blue;
+            statusText = 'Validasi Otomatis';
+            statusIcon = Icons.auto_fix_high;
+            break;
+          case 'needs_correction':
+            statusColor = Colors.orange;
+            statusText = 'Perlu Perbaikan';
+            statusIcon = Icons.warning;
+            break;
+          case 'under_review':
+            statusColor = Colors.purple;
+            statusText = 'Sedang Ditinjau';
+            statusIcon = Icons.rate_review;
+            break;
+          case 'pending_inspection':
+            statusColor = Colors.indigo;
+            statusText = 'Menunggu Inspeksi';
+            statusIcon = Icons.search;
+            break;
+          default:
+            statusColor = Colors.orange;
+            statusText = 'Menunggu Verifikasi';
+            statusIcon = Icons.pending;
+        }
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusText = 'Status Tidak Diketahui';
+        statusIcon = Icons.help;
     }
 
     return Card(
@@ -170,6 +208,14 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                           fontSize: 12,
                         ),
                       ),
+                      if (substatus != 'initial' && substatus != status)
+                        Text(
+                          '($substatus)',
+                          style: TextStyle(
+                            color: statusColor.withOpacity(0.7),
+                            fontSize: 10,
+                          ),
+                        ),
                     ],
                   ),
                 ),

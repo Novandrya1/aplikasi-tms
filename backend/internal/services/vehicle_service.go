@@ -84,6 +84,15 @@ func CreateVehicle(db *sql.DB, req models.VehicleRequest, userID int) (*models.V
 	vehicle.MaintenanceNotes = req.MaintenanceNotes
 	vehicle.CreatedBy = userID
 
+	// Trigger auto validation after vehicle creation
+	go func() {
+		autoValidator := NewAutoValidationService(db)
+		_, err := autoValidator.ValidateVehicle(vehicle.ID)
+		if err != nil {
+			log.Printf("Auto validation failed for vehicle %d: %v", vehicle.ID, err)
+		}
+	}()
+
 	return &vehicle, nil
 }
 

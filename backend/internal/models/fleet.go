@@ -23,16 +23,7 @@ type FleetOwnerRequest struct {
 	Email           string `json:"email" binding:"required,email"`
 }
 
-type VehicleAttachment struct {
-	ID             int       `json:"id"`
-	VehicleID      int       `json:"vehicle_id"`
-	AttachmentType string    `json:"attachment_type"`
-	FileName       string    `json:"file_name"`
-	FilePath       string    `json:"file_path"`
-	FileSize       int       `json:"file_size"`
-	MimeType       string    `json:"mime_type"`
-	UploadedAt     time.Time `json:"uploaded_at"`
-}
+
 
 type VehicleRegistrationRequest struct {
 	// Basic Info
