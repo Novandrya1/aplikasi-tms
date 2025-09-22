@@ -442,6 +442,8 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
 
   Widget _buildVerificationCard() {
     final status = _vehicle!['verification_status'] ?? 'pending';
+    final substatus = _vehicle!['verification_substatus'] ?? 'initial';
+    final autoValidationResult = _vehicle!['auto_validation_result'];
     
     if (status != 'pending') {
       return Card(
@@ -479,6 +481,17 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             ],
           ),
         ),
+      );
+    }
+
+    // Show auto validation results if available
+    if (autoValidationResult != null && substatus == 'needs_correction') {
+      return Column(
+        children: [
+          _buildAutoValidationCard(autoValidationResult),
+          SizedBox(height: 16),
+          _buildManualVerificationCard(),
+        ],
       );
     }
 
@@ -895,6 +908,211 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       );
     } finally {
       setState(() => _isVerifying = false);
+    }
+  }
+
+  Widget _buildAutoValidationCard(String autoValidationJson) {
+    try {
+      final result = json.decode(autoValidationJson);
+      final checks = result['checks'] as List;
+      final confidence = result['confidence_score'] ?? 0.0;
+      
+      return Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_fix_high, color: Colors.blue[600]),
+                  SizedBox(width: 8),
+                  Text(
+                    'Hasil Validasi Otomatis',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Spacer(),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getConfidenceColor(confidence).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Confidence: ${(confidence * 100).toInt()}%',
+                      style: TextStyle(
+                        color: _getConfidenceColor(confidence),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              ...checks.map((check) => _buildValidationCheckItem(check)).toList(),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      return Container();
+    }
+  }
+
+  Widget _buildValidationCheckItem(Map<String, dynamic> check) {
+    final status = check['status'];
+    Color statusColor = Colors.grey;
+    IconData statusIcon = Icons.help;
+    
+    switch (status) {
+      case 'passed':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'failed':
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        break;
+      case 'warning':
+        statusColor = Colors.orange;
+        statusIcon = Icons.warning;
+        break;
+    }
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: statusColor.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(8),
+        color: statusColor.withOpacity(0.05),
+      ),
+      child: Row(
+        children: [
+          Icon(statusIcon, color: statusColor, size: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getCheckTypeDisplay(check['type']),
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  check['message'] ?? '',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          if (check['confidence'] != null)
+            Text(
+              '${(check['confidence'] * 100).toInt()}%',
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManualVerificationCard() {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.verified, color: Colors.blue[600]),
+                SizedBox(width: 8),
+                Text(
+                  'Verifikasi Manual',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            
+            Text('Keputusan Verifikasi:', style: TextStyle(fontWeight: FontWeight.w500)),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: Text('Setujui'),
+                    value: 'approved',
+                    groupValue: _selectedStatus,
+                    onChanged: (value) => setState(() => _selectedStatus = value!),
+                    activeColor: Colors.green,
+                  ),
+                ),
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: Text('Tolak'),
+                    value: 'rejected',
+                    groupValue: _selectedStatus,
+                    onChanged: (value) => setState(() => _selectedStatus = value!),
+                    activeColor: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: 16),
+            Text('Catatan Verifikasi:', style: TextStyle(fontWeight: FontWeight.w500)),
+            SizedBox(height: 8),
+            TextField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Tambahkan catatan untuk keputusan verifikasi...',
+              ),
+              maxLines: 3,
+            ),
+            
+            SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isVerifying ? null : _verifyVehicle,
+                icon: _isVerifying 
+                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(_selectedStatus == 'approved' ? Icons.check : Icons.close),
+                label: Text(_selectedStatus == 'approved' ? 'Setujui Kendaraan' : 'Tolak Kendaraan'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedStatus == 'approved' ? Colors.green : Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.8) return Colors.green;
+    if (confidence >= 0.6) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _getCheckTypeDisplay(String type) {
+    switch (type) {
+      case 'document_completeness': return 'Kelengkapan Dokumen';
+      case 'plate_format': return 'Format Nomor Plat';
+      case 'vin_format': return 'Format Nomor Rangka';
+      case 'duplicate_check': return 'Pengecekan Duplikasi';
+      case 'document_expiry': return 'Masa Berlaku Dokumen';
+      default: return type;
     }
   }
 

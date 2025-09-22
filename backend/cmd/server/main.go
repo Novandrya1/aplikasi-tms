@@ -926,6 +926,23 @@ func verifyVehicleHandler(c *gin.Context) {
 		return
 	}
 
+	// Send notification after verification
+	go func() {
+		notificationService := services.NewNotificationService(conn)
+		templateKey := "approved"
+		extraVars := map[string]interface{}{}
+		
+		if req.Status == "rejected" {
+			templateKey = "rejected"
+			extraVars["reason"] = req.Notes
+		}
+		
+		err := notificationService.SendVehicleNotification(vehicleID, templateKey, extraVars)
+		if err != nil {
+			log.Printf("Failed to send verification notification: %v", err)
+		}
+	}()
+
 	c.JSON(http.StatusOK, gin.H{"message": "Vehicle verification status updated successfully"})
 }
 

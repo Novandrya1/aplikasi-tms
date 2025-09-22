@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/youruser/aplikasi-tms/backend/internal/middleware"
@@ -84,12 +85,54 @@ func CreateVehicle(db *sql.DB, req models.VehicleRequest, userID int) (*models.V
 	vehicle.MaintenanceNotes = req.MaintenanceNotes
 	vehicle.CreatedBy = userID
 
-	// Trigger auto validation after vehicle creation
+	// Trigger auto validation and notifications after vehicle creation
 	go func() {
+		// Send submission notification
+		notificationService := NewNotificationService(db)
+		err := notificationService.SendVehicleNotification(vehicle.ID, "vehicle_submitted", nil)
+		if err != nil {
+			log.Printf("Failed to send submission notification: %v", err)
+		}
+
+		// Run auto validation
 		autoValidator := NewAutoValidationService(db)
-		_, err := autoValidator.ValidateVehicle(vehicle.ID)
+		result, err := autoValidator.ValidateVehicle(vehicle.ID)
 		if err != nil {
 			log.Printf("Auto validation failed for vehicle %d: %v", vehicle.ID, err)
+			return
+		}
+
+		// Send notification based on validation result
+		var templateKey string
+		var extraVars map[string]interface{}
+
+		switch result.OverallStatus {
+		case "needs_correction":
+			templateKey = "needs_correction"
+			correctionItems := []string{}
+			for _, check := range result.Checks {
+				if check.Status == "failed" {
+					correctionItems = append(correctionItems, check.Message)
+				}
+			}
+			extraVars = map[string]interface{}{
+				"correction_items": strings.Join(correctionItems, ", "),
+			}
+		case "under_review":
+			templateKey = "under_review"
+		case "auto_approved":
+			// Update status to approved
+			_, err = db.Exec("UPDATE vehicles SET verification_status = 'approved', operational_status = 'active' WHERE id = $1", vehicle.ID)
+			if err == nil {
+				templateKey = "approved"
+			}
+		}
+
+		if templateKey != "" {
+			err = notificationService.SendVehicleNotification(vehicle.ID, templateKey, extraVars)
+			if err != nil {
+				log.Printf("Failed to send validation notification: %v", err)
+			}
 		}
 	}()
 

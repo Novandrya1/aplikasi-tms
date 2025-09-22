@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -190,7 +191,19 @@ func UpdateVehicleVerificationStatus(db *sql.DB, vehicleID int, status string, a
 
 	// Send notification to vehicle owner
 	go func() {
-		NotifyVehicleOwner(db, vehicleID, status, adminNotes)
+		notificationService := NewNotificationService(db)
+		templateKey := "approved"
+		extraVars := map[string]interface{}{}
+		
+		if status == "rejected" {
+			templateKey = "rejected"
+			extraVars["reason"] = adminNotes
+		}
+		
+		err := notificationService.SendVehicleNotification(vehicleID, templateKey, extraVars)
+		if err != nil {
+			log.Printf("Failed to send verification notification: %v", err)
+		}
 	}()
 
 	return nil
