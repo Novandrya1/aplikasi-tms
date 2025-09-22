@@ -26,8 +26,9 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 	for rows.Next() {
 		var v map[string]interface{} = make(map[string]interface{})
 		var id, year int
-		var regNumber, vehicleType, brand, model, status, companyName, fullName, email string
+		var regNumber, vehicleType, brand, model, status string
 		var createdAt string
+		var companyName, fullName, email sql.NullString
 
 		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
 			&status, &createdAt, &companyName, &fullName, &email)
@@ -43,9 +44,22 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 		v["year"] = year
 		v["verification_status"] = status
 		v["created_at"] = createdAt
-		v["company_name"] = companyName
-		v["owner_name"] = fullName
-		v["owner_email"] = email
+		
+		if companyName.Valid {
+			v["company_name"] = companyName.String
+		} else {
+			v["company_name"] = ""
+		}
+		if fullName.Valid {
+			v["owner_name"] = fullName.String
+		} else {
+			v["owner_name"] = ""
+		}
+		if email.Valid {
+			v["owner_email"] = email.String
+		} else {
+			v["owner_email"] = ""
+		}
 
 		vehicles = append(vehicles, v)
 	}
@@ -72,10 +86,11 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 	for rows.Next() {
 		var v map[string]interface{} = make(map[string]interface{})
 		var id, year int
-		var regNumber, vehicleType, brand, model, verificationStatus, operationalStatus, companyName, fullName, email string
+		var regNumber, vehicleType, brand, model, verificationStatus, operationalStatus string
 		var createdAt string
 		var verifiedAt sql.NullString
 		var adminNotes sql.NullString
+		var companyName, fullName, email sql.NullString
 
 		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
 			&verificationStatus, &operationalStatus, &createdAt, &verifiedAt, &adminNotes,
@@ -99,9 +114,22 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 		if adminNotes.Valid {
 			v["admin_notes"] = adminNotes.String
 		}
-		v["company_name"] = companyName
-		v["owner_name"] = fullName
-		v["owner_email"] = email
+		
+		if companyName.Valid {
+			v["company_name"] = companyName.String
+		} else {
+			v["company_name"] = ""
+		}
+		if fullName.Valid {
+			v["owner_name"] = fullName.String
+		} else {
+			v["owner_name"] = ""
+		}
+		if email.Valid {
+			v["owner_email"] = email.String
+		} else {
+			v["owner_email"] = ""
+		}
 
 		vehicles = append(vehicles, v)
 	}
