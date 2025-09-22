@@ -70,6 +70,20 @@ make test
 make logs
 ```
 
+## 🔄 Auto Commit
+
+### Manual Auto Commit
+```bash
+# Commit semua perubahan sekali
+./auto-commit.sh
+```
+
+### Auto Commit dengan Watcher
+```bash
+# Jalankan watcher untuk auto commit otomatis
+./watch-and-commit.sh
+```
+
 ## Database Schema
 
 ### Tables
