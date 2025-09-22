@@ -605,7 +605,22 @@ func getVehicleAttachmentsHandler(c *gin.Context) {
 		return
 	}
 
-	attachments, err := services.GetVehicleAttachments(conn, vehicleID)
+	attachmentStructs, err := services.GetVehicleAttachments(conn, vehicleID)
+	// Convert to map format for JSON response
+	var attachments []map[string]interface{}
+	for _, att := range attachmentStructs {
+		attMap := map[string]interface{}{
+			"id":              att.ID,
+			"vehicle_id":      att.VehicleID,
+			"attachment_type": att.AttachmentType,
+			"file_name":       att.FileName,
+			"file_path":       att.FilePath,
+			"file_size":       att.FileSize,
+			"mime_type":       att.MimeType,
+			"uploaded_at":     att.UploadedAt,
+		}
+		attachments = append(attachments, attMap)
+	}
 	if err != nil {
 		log.Printf("Get attachments error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get attachments"})

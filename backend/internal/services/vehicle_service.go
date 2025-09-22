@@ -164,3 +164,4 @@ func parseOptionalDate(dateStr *string, fieldName string) (*time.Time, error) {
 	}
 	return &t, nil
 }
+
