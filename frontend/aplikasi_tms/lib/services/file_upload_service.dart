@@ -18,9 +18,10 @@ class FileUploadService {
     };
   }
 
-  static Future<String?> pickAndUploadFile({
+  static Future<Map<String, dynamic>?> pickAndUploadFile({
     required String documentType,
     required BuildContext context,
+    required int vehicleId,
     bool allowCamera = true,
   }) async {
     try {
@@ -28,7 +29,6 @@ class FileUploadService {
       final source = await _showSourceDialog(context, allowCamera);
       if (source == null) return null;
 
-      String? filePath;
       Uint8List? fileBytes;
       String? fileName;
 
@@ -41,9 +41,8 @@ class FileUploadService {
           imageQuality: 85,
         );
         if (image != null) {
-          filePath = image.path;
           fileBytes = await image.readAsBytes();
-          fileName = image.name;
+          fileName = '${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         }
       } else if (source == 'gallery') {
         final ImagePicker picker = ImagePicker();
@@ -54,9 +53,8 @@ class FileUploadService {
           imageQuality: 85,
         );
         if (image != null) {
-          filePath = image.path;
           fileBytes = await image.readAsBytes();
-          fileName = image.name;
+          fileName = '${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
         }
       } else {
         // File picker
@@ -73,8 +71,7 @@ class FileUploadService {
             fileName = result.files.single.name;
           } else if (result.files.single.path != null) {
             // Mobile platform
-            filePath = result.files.single.path!;
-            fileBytes = await File(filePath).readAsBytes();
+            fileBytes = await File(result.files.single.path!).readAsBytes();
             fileName = result.files.single.name;
           }
         }
@@ -82,9 +79,13 @@ class FileUploadService {
 
       if (fileBytes == null || fileName == null) return null;
 
-      // For demo purposes, return mock file path
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      return 'uploads/${documentType}_${timestamp}_${fileName}';
+      // Upload to backend
+      return await _uploadFileToBackend(
+        vehicleId: vehicleId,
+        fileBytes: fileBytes,
+        fileName: fileName,
+        documentType: documentType,
+      );
     } catch (e) {
       print('Error picking/uploading file: $e');
       return null;
@@ -128,7 +129,8 @@ class FileUploadService {
     );
   }
 
-  static Future<String?> _uploadFile({
+  static Future<Map<String, dynamic>?> _uploadFileToBackend({
+    required int vehicleId,
     required Uint8List fileBytes,
     required String fileName,
     required String documentType,
@@ -136,33 +138,34 @@ class FileUploadService {
     try {
       final headers = await _getHeaders();
       
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/upload/document'),
-      );
+      // Convert image to base64 for JSON upload
+      final base64Image = 'data:image/jpeg;base64,${base64Encode(fileBytes)}';
       
-      request.headers.addAll(headers);
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          fileBytes,
-          filename: fileName,
-        ),
+      final response = await http.post(
+        Uri.parse('$baseUrl/vehicles/$vehicleId/attachments'),
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'attachment_type': documentType,
+          'file_name': fileName,
+          'file_size': fileBytes.length,
+          'mime_type': 'image/jpeg',
+          'data': base64Image,
+        }),
       );
-      request.fields['document_type'] = documentType;
 
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        final data = json.decode(responseBody);
-        return data['file_url'] ?? fileName;
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data['attachment'];
+      } else {
+        print('Upload failed: ${response.statusCode} - ${response.body}');
+        return null;
       }
-      return null;
     } catch (e) {
       print('Upload error: $e');
-      // For demo purposes, return a mock file path
-      return 'uploads/${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      return null;
     }
   }
 }

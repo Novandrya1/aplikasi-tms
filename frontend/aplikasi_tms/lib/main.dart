@@ -17,6 +17,16 @@ import 'screens/transport_management_screen.dart';
 import 'screens/fleet_management_screen.dart';
 import 'screens/trip_management_screen.dart';
 import 'screens/vehicle_management_screen.dart';
+import 'screens/admin_verification_dashboard_screen.dart';
+import 'screens/vehicle_verification_detail_screen.dart';
+import 'screens/analytics_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/revenue_analytics_screen.dart';
+import 'screens/shipment_management_screen.dart';
+import 'screens/warehouse_management_screen.dart';
+import 'screens/order_management_screen.dart';
+import 'screens/driver_management_screen.dart' as driver_mgmt;
 import 'services/auth_service.dart';
 
 void main() {
@@ -50,9 +60,18 @@ class TMSApp extends StatelessWidget {
         '/fleet-register': (context) => FleetRegistrationScreen(),
         '/fleet-dashboard': (context) => FleetDashboardScreen(),
         '/admin-dashboard': (context) => AdminDashboardScreen(),
+        '/admin-verification': (context) => const AdminVerificationDashboardScreen(),
         '/driver-dashboard': (context) => DriverDashboardScreen(),
         '/driver-trips': (context) => DriverTripsScreen(),
+        '/driver-management': (context) => driver_mgmt.DriverManagementScreen(),
         '/new-user-dashboard': (context) => const NewUserDashboardScreen(),
+        '/analytics': (context) => AnalyticsScreen(),
+        '/notifications': (context) => NotificationsScreen(),
+        '/profile': (context) => ProfileScreen(),
+        '/revenue-analytics': (context) => RevenueAnalyticsScreen(),
+        '/shipment-management': (context) => ShipmentManagementScreen(),
+        '/warehouse-management': (context) => const WarehouseManagementScreen(),
+        '/order-management': (context) => const OrderManagementScreen(),
       },
       debugShowCheckedModeBanner: false,
     );

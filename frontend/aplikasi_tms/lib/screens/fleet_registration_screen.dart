@@ -1206,10 +1206,11 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       final result = await FileUploadService.pickAndUploadFile(
         documentType: title.toLowerCase().replaceAll(' ', '_'),
         context: context,
+        vehicleId: 1, // Temporary vehicle ID for demo
         allowCamera: true,
       );
       if (result != null) {
-        onFileSelected(result);
+        onFileSelected(result?['file_path'] ?? result.toString());
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Dokumen berhasil diupload: $title'),
@@ -1318,11 +1319,12 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       final result = await FileUploadService.pickAndUploadFile(
         documentType: 'vehicle_photo',
         context: context,
+        vehicleId: 1, // Temporary vehicle ID for demo
         allowCamera: true,
       );
       if (result != null) {
         setState(() {
-          _vehiclePhotos.add(result);
+          _vehiclePhotos.add(result['file_path'] ?? result.toString());
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

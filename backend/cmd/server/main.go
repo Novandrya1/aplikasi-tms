@@ -164,6 +164,12 @@ func main() {
 		api.GET("/fleet/tracking", middleware.AuthRequired(), getVehicleTrackingHandler)
 		api.GET("/fleet/analytics", middleware.AuthRequired(), getRevenueAnalyticsHandler)
 		
+		// OCR endpoints
+		api.POST("/ocr/stnk", middleware.AuthRequired(), extractSTNKHandler)
+		api.POST("/ocr/ktp", middleware.AuthRequired(), extractKTPHandler)
+		api.POST("/ocr/face-match", middleware.AuthRequired(), faceMatchHandler)
+		api.POST("/ocr/validate-quality", middleware.AuthRequired(), validateQualityHandler)
+		
 		// Driver mobile app endpoints
 		api.GET("/driver/profile", middleware.AuthRequired(), getDriverProfileHandler)
 		api.GET("/driver/trips", middleware.AuthRequired(), getDriverTripsHandler)
@@ -1777,4 +1783,107 @@ func scheduleInspectionHandler(c *gin.Context) {
 		"inspection_date": inspectionDate,
 		"location": req.Location,
 	})
+}
+
+// OCR handlers
+func extractSTNKHandler(c *gin.Context) {
+	var req struct {
+		ImageData    string `json:"image_data" binding:"required"`
+		DocumentType string `json:"document_type"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	ocrService := services.NewOCRService()
+	data, err := ocrService.ExtractSTNKData(req.ImageData)
+	if err != nil {
+		log.Printf("STNK OCR error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate extracted data
+	issues := ocrService.ValidateSTNKData(data)
+
+	c.JSON(http.StatusOK, gin.H{
+		"extracted_data": data,
+		"validation_issues": issues,
+		"status": "success",
+	})
+}
+
+func extractKTPHandler(c *gin.Context) {
+	var req struct {
+		ImageData    string `json:"image_data" binding:"required"`
+		DocumentType string `json:"document_type"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	ocrService := services.NewOCRService()
+	data, err := ocrService.ExtractKTPData(req.ImageData)
+	if err != nil {
+		log.Printf("KTP OCR error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate extracted data
+	issues := ocrService.ValidateKTPData(data)
+
+	c.JSON(http.StatusOK, gin.H{
+		"extracted_data": data,
+		"validation_issues": issues,
+		"status": "success",
+	})
+}
+
+func faceMatchHandler(c *gin.Context) {
+	var req struct {
+		SelfieImage string `json:"selfie_image" binding:"required"`
+		KTPImage    string `json:"ktp_image" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	ocrService := services.NewOCRService()
+	result, err := ocrService.PerformFaceMatch(req.SelfieImage, req.KTPImage)
+	if err != nil {
+		log.Printf("Face match error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+func validateQualityHandler(c *gin.Context) {
+	var req struct {
+		ImageData    string `json:"image_data" binding:"required"`
+		DocumentType string `json:"document_type" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	ocrService := services.NewOCRService()
+	result, err := ocrService.ValidateDocumentQuality(req.ImageData, req.DocumentType)
+	if err != nil {
+		log.Printf("Quality validation error: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }

@@ -2,9 +2,34 @@ import 'package:flutter/material.dart';
 import 'warehouse_management_screen.dart';
 import 'transport_management_screen.dart';
 import 'order_management_screen.dart';
+import '../widgets/bottom_nav_bar.dart';
 
-class MainDashboardScreen extends StatelessWidget {
+class MainDashboardScreen extends StatefulWidget {
   const MainDashboardScreen({super.key});
+
+  @override
+  State<MainDashboardScreen> createState() => _MainDashboardScreenState();
+}
+
+class _MainDashboardScreenState extends State<MainDashboardScreen> {
+  int _currentIndex = 0;
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        // Already on dashboard
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/analytics');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 3:
+        Navigator.pushNamed(context, '/profile');
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,8 +96,19 @@ class MainDashboardScreen extends StatelessWidget {
                       ),
                     ),
                     IconButton(
+                      onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                      icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                      tooltip: 'Notifications',
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pushNamed(context, '/profile'),
+                      icon: Icon(Icons.account_circle, color: Colors.grey[600]),
+                      tooltip: 'Profile',
+                    ),
+                    IconButton(
                       onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
                       icon: Icon(Icons.logout, color: Colors.grey[600]),
+                      tooltip: 'Logout',
                     ),
                   ],
                 ),
@@ -196,6 +232,14 @@ class MainDashboardScreen extends StatelessWidget {
                             () => Navigator.push(context, MaterialPageRoute(
                               builder: (context) => const OrderManagementScreen(),
                             )),
+                          ),
+                          _buildMainProcessCard(
+                            context,
+                            'Shipment Management',
+                            'Kelola pengiriman dan tracking',
+                            Icons.local_shipping,
+                            Colors.teal,
+                            () => Navigator.pushNamed(context, '/shipment-management'),
                           ),
                         ],
                       ),
@@ -330,7 +374,7 @@ class MainDashboardScreen extends StatelessWidget {
                             'Analytics', 
                             Icons.analytics, 
                             Colors.indigo,
-                            () {},
+                            () => Navigator.pushNamed(context, '/analytics'),
                           ),
                         ],
                       ),
@@ -341,6 +385,10 @@ class MainDashboardScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onBottomNavTap,
       ),
     );
   }

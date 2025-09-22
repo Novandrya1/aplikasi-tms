@@ -41,24 +41,20 @@ class CustomBottomNavBar extends StatelessWidget {
         ),
         items: [
           BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.home_outlined, Icons.home, 0),
-            label: 'Beranda',
+            icon: _buildNavIcon(Icons.dashboard_outlined, Icons.dashboard, 0),
+            label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.local_shipping_outlined, Icons.local_shipping, 1),
-            label: 'Armada',
+            icon: _buildNavIcon(Icons.analytics_outlined, Icons.analytics, 1),
+            label: 'Analytics',
           ),
           BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.inventory_2_outlined, Icons.inventory_2, 2),
-            label: 'Pengiriman',
+            icon: _buildNavIcon(Icons.notifications_outlined, Icons.notifications, 2),
+            label: 'Notifications',
           ),
           BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.analytics_outlined, Icons.analytics, 3),
-            label: 'Analitik',
-          ),
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.person_outline, Icons.person, 4),
-            label: 'Profil',
+            icon: _buildNavIcon(Icons.person_outline, Icons.person, 3),
+            label: 'Profile',
           ),
         ],
       ),

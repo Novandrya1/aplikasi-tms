@@ -73,8 +73,13 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, true); // Return true to indicate refresh needed
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: Text('Verifikasi Kendaraan'),
         backgroundColor: Colors.red[600],
         foregroundColor: Colors.white,
@@ -116,6 +121,7 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                     ],
                   ),
                 ),
+      ),
     );
   }
 

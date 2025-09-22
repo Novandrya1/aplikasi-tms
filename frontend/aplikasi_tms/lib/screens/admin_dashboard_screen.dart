@@ -4,6 +4,7 @@ import 'transport_management_screen.dart';
 import 'order_management_screen.dart';
 import 'admin_vehicles_screen.dart';
 import 'admin_verification_dashboard_screen.dart';
+import 'ocr_demo_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -11,6 +12,7 @@ class AdminDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: _buildDrawer(context),
       appBar: AppBar(
         title: const Text('Admin - TMS Dashboard'),
         backgroundColor: Colors.red,
@@ -129,6 +131,7 @@ class AdminDashboardScreen extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
+              childAspectRatio: 1.0,
               children: [
                 _buildAdminCard('Verifikasi\nArmada', Icons.verified, Colors.orange, () {
                   Navigator.push(context, MaterialPageRoute(
@@ -145,6 +148,17 @@ class AdminDashboardScreen extends StatelessWidget {
                 }),
                 _buildAdminCard('System\nSettings', Icons.settings, Colors.grey, () {
                   _showComingSoon(context, 'System Settings');
+                }),
+                _buildAdminCard('Revenue\nAnalytics', Icons.trending_up, Colors.teal, () {
+                  Navigator.pushNamed(context, '/revenue-analytics');
+                }),
+                _buildAdminCard('Shipment\nManagement', Icons.local_shipping, Colors.indigo, () {
+                  Navigator.pushNamed(context, '/shipment-management');
+                }),
+                _buildAdminCard('OCR\nDemo', Icons.document_scanner, Colors.cyan, () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => OCRDemoScreen(),
+                  ));
                 }),
               ],
             ),
@@ -247,6 +261,101 @@ class AdminDashboardScreen extends StatelessWidget {
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$feature feature coming soon')),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.red[400]!, Colors.red[600]!],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.admin_panel_settings, color: Colors.white, size: 40),
+                SizedBox(height: 8),
+                Text(
+                  'Admin Panel',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Transport Management System',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.dashboard),
+            title: Text('Dashboard'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: Icon(Icons.verified),
+            title: Text('Verifikasi Armada'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/admin-verification');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.directions_car),
+            title: Text('Kelola Kendaraan'),
+            onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: Icon(Icons.trending_up),
+            title: Text('Revenue Analytics'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/revenue-analytics');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.local_shipping),
+            title: Text('Shipment Management'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/shipment-management');
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.notifications),
+            title: Text('Notifications'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/notifications');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.account_circle),
+            title: Text('Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/profile');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.logout, color: Colors.red),
+            title: Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+          ),
+        ],
+      ),
     );
   }
 }

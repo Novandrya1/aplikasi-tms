@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../services/file_service.dart';
 import '../services/file_upload_service.dart';
 
@@ -339,10 +341,12 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
   }
 
   void _pickAndUploadFile(String attachmentType) async {
+    setState(() => _isUploading = true);
     try {
       final result = await FileUploadService.pickAndUploadFile(
         documentType: attachmentType,
         context: context,
+        vehicleId: widget.vehicleId,
         allowCamera: true,
       );
       if (result != null) {
@@ -361,26 +365,84 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      setState(() => _isUploading = false);
     }
   }
 
 
 
-  void _viewAttachment(Map<String, dynamic> attachment) {
-    // For web compatibility, show dialog with file info
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Dokumen'),
-        content: Text('File: ${attachment['file_name']}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Tutup'),
-          ),
-        ],
-      ),
-    );
+  void _viewAttachment(Map<String, dynamic> attachment) async {
+    try {
+      // Get file data from backend
+      final fileName = attachment['file_name'];
+      final response = await http.get(
+        Uri.parse('${FileUploadService.baseUrl}/files/$fileName'),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['type'] == 'base64') {
+          // Show image dialog
+          showDialog(
+            context: context,
+            builder: (context) => Dialog(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: 500, maxHeight: 600),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppBar(
+                      title: Text('Dokumen'),
+                      automaticallyImplyLeading: false,
+                      actions: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Text(
+                              attachment['file_name'],
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 16),
+                            Image.memory(
+                              base64Decode(data['data'].split(',')[1]),
+                              fit: BoxFit.contain,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Fallback to simple dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Dokumen'),
+          content: Text('File: ${attachment['file_name']}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _deleteAttachment(Map<String, dynamic> attachment) async {
