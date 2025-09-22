@@ -533,6 +533,61 @@ func uploadVehicleAttachmentHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if it's multipart form or JSON
+	contentType := c.GetHeader("Content-Type")
+	if strings.Contains(contentType, "application/json") {
+		// Handle JSON upload (for simulation)
+		var req struct {
+			AttachmentType string `json:"attachment_type"`
+			FileName       string `json:"file_name"`
+			FileSize       int    `json:"file_size"`
+			MimeType       string `json:"mime_type"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+
+		conn, err := db.Connect()
+		if err != nil {
+			log.Printf("Database connection error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			return
+		}
+
+		// Create mock attachment record
+		query := `INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_name, file_path, file_size, mime_type)
+				  VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, uploaded_at`
+
+		filePath := fmt.Sprintf("./uploads/%s", req.FileName)
+		var attachmentID int
+		var uploadedAt time.Time
+		err = conn.QueryRow(query, vehicleID, req.AttachmentType, req.FileName, filePath, req.FileSize, req.MimeType).
+			Scan(&attachmentID, &uploadedAt)
+
+		if err != nil {
+			log.Printf("Insert attachment error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save attachment"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"attachment": gin.H{
+				"id":              attachmentID,
+				"vehicle_id":      vehicleID,
+				"attachment_type": req.AttachmentType,
+				"file_name":       req.FileName,
+				"file_path":       filePath,
+				"file_size":       req.FileSize,
+				"mime_type":       req.MimeType,
+				"uploaded_at":     uploadedAt,
+			},
+		})
+		return
+	}
+
+	// Original multipart form handling
 	attachmentType := c.PostForm("attachment_type")
 	if attachmentType == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Attachment type is required"})
