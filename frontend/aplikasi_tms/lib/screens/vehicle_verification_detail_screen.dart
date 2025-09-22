@@ -314,6 +314,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       'ktp': 'KTP Pemilik',
       'selfie': 'Foto Selfie + KTP',
       'vehicle_photo': 'Foto Kendaraan',
+      'foto_depan': 'Foto Depan Kendaraan',
+      'foto_belakang': 'Foto Belakang Kendaraan',
+      'foto_samping': 'Foto Samping Kendaraan',
       'insurance': 'Asuransi',
       'tax': 'Pajak Kendaraan',
     };
@@ -329,13 +332,25 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       ),
       child: Row(
         children: [
+          // Thumbnail gambar
           Container(
-            padding: EdgeInsets.all(8),
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(6),
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
             ),
-            child: Icon(Icons.description, color: Colors.blue[600], size: 20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                child: Icon(
+                  Icons.image,
+                  color: Colors.grey[600],
+                  size: 30,
+                ),
+              ),
+            ),
           ),
           SizedBox(width: 12),
           Expanded(
@@ -349,6 +364,10 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                 Text(
                   doc['file_name'],
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                Text(
+                  '${(doc['file_size'] / 1024).toStringAsFixed(1)} KB',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -545,7 +564,34 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.image, size: 64, color: Colors.grey[400]),
+                      // Tampilkan preview gambar
+                      Container(
+                        width: 200,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.image, size: 64, color: Colors.blue[400]),
+                              SizedBox(height: 8),
+                              Text(
+                                _getDocumentTypeDisplay(doc['attachment_type']),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       SizedBox(height: 16),
                       Text(
                         'Preview Dokumen',
@@ -554,6 +600,10 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                       SizedBox(height: 8),
                       Text(
                         'File: ${doc['file_name']}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
+                      Text(
+                        'Size: ${(doc['file_size'] / 1024).toStringAsFixed(1)} KB',
                         style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                       ),
                     ],
@@ -786,6 +836,17 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       );
     } finally {
       setState(() => _isVerifying = false);
+    }
+  }
+
+  String _getDocumentTypeDisplay(String type) {
+    switch (type) {
+      case 'bpkb': return 'BPKB';
+      case 'stnk': return 'STNK';
+      case 'foto_depan': return 'Foto Depan';
+      case 'foto_belakang': return 'Foto Belakang';
+      case 'foto_samping': return 'Foto Samping';
+      default: return type.toUpperCase();
     }
   }
 

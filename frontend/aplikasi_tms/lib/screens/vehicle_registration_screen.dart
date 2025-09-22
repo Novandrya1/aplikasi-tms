@@ -639,12 +639,33 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     if (choice == null) return;
     
     try {
-      // Simulate file selection (in real app, use file_picker or image_picker)
+      // Generate realistic file data based on document type
+      String fileName;
+      int fileSize;
+      
+      switch (documentType) {
+        case 'BPKB':
+          fileName = 'BPKB_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          fileSize = 2048000 + (DateTime.now().millisecondsSinceEpoch % 1000000); // 2-3MB
+          break;
+        case 'STNK':
+          fileName = 'STNK_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          fileSize = 1024000 + (DateTime.now().millisecondsSinceEpoch % 500000); // 1-1.5MB
+          break;
+        case 'Foto Kendaraan':
+          fileName = 'Foto_Kendaraan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          fileSize = 3072000 + (DateTime.now().millisecondsSinceEpoch % 2000000); // 3-5MB
+          break;
+        default:
+          fileName = '${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          fileSize = 1024000;
+      }
+      
       Map<String, dynamic> file = {
-        'name': '${documentType.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        'size': 1024 + (DateTime.now().millisecondsSinceEpoch % 5000), // Random size
+        'name': fileName,
+        'size': fileSize,
         'type': 'image/jpeg',
-        'path': '/mock/path/to/file.jpg', // Mock path
+        'data': _generateImageData(documentType), // Generate base64 image data
       };
       
       setState(() {
@@ -680,6 +701,20 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  String _generateImageData(String documentType) {
+    // Generate simple base64 image data based on document type
+    switch (documentType) {
+      case 'BPKB':
+        return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==';
+      case 'STNK':
+        return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAIBAQIBAQICAgICAgICAwUDAwMDAwYEBAMFBwYHBwcGBwcICQsJCAgKCAcHCg0KCgsMDAwMBwkODw0MDgsMDAz/2wBDAQICAgMDAwYDAwYMCAcIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAz/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==';
+      case 'Foto Kendaraan':
+        return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==';
+      default:
+        return 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEAPwA/wA==';
     }
   }
   

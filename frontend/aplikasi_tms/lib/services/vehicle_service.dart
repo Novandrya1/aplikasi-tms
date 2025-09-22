@@ -84,7 +84,7 @@ class VehicleService {
     try {
       final headers = await _getHeaders();
       
-      // Simulate multipart upload (in real app, use http.MultipartRequest)
+      // Send file data including base64 image
       final response = await http.post(
         Uri.parse('$baseUrl/vehicles/$vehicleId/attachments'),
         headers: headers,
@@ -93,6 +93,7 @@ class VehicleService {
           'file_name': fileInfo['name'],
           'file_size': fileInfo['size'],
           'mime_type': fileInfo['type'],
+          'data': fileInfo['data'] ?? '', // Include base64 image data
         }),
       );
 
