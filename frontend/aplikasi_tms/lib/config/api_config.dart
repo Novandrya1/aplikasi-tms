@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  static const String _webBaseUrl = 'http://localhost:8080/api/v1'; // Direct to backend
+  static const String _webBaseUrl = '/api/v1'; // Nginx proxy
   static const String _mobileBaseUrl = 'http://10.0.2.2:8080/api/v1';
   
   static String get baseUrl {
