@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TMS - Transport Management System</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; }
+        
+        /* Login Screen */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .login-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .login-card h2 { text-align: center; margin-bottom: 30px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: 500; }
+        .form-group input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+        .btn { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .btn:hover { background: #5a67d8; }
+        .btn.secondary { background: #718096; margin-top: 10px; }
+        
+        /* Dashboard */
+        .dashboard { display: none; }
+        .header { background: white; padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: fixed; top: 0; left: 0; right: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { color: #333; margin: 0; font-size: 1.5em; }
+        .hamburger { background: none; border: none; font-size: 24px; cursor: pointer; }
+        .logout-btn { background: #e74c3c; padding: 8px 16px; border: none; border-radius: 5px; color: white; cursor: pointer; }
+        .main-content { margin-top: 80px; margin-bottom: 80px; padding: 20px; }
+        
+        /* Sidebar */
+        .sidebar { position: fixed; top: 80px; left: -300px; width: 300px; height: calc(100vh - 80px); background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; overflow-y: auto; }
+        .sidebar.open { left: 0; }
+        .sidebar-item { padding: 15px 20px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.3s; }
+        .sidebar-item:hover { background: #f8f9fa; }
+        .sidebar-item.active { background: #667eea; color: white; }
+        
+        /* Bottom Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; z-index: 1000; }
+        .nav-item { flex: 1; padding: 12px 8px; text-align: center; cursor: pointer; transition: background 0.3s; border: none; background: none; }
+        .nav-item:hover { background: #f8f9fa; }
+        .nav-item.active { background: #667eea; color: white; }
+        .nav-item .icon { font-size: 20px; margin-bottom: 5px; }
+        .nav-item .label { font-size: 12px; }
+        
+        /* Content Sections */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+        .stat-card h3 { font-size: 2em; margin-bottom: 5px; }
+        .stat-card.vehicles h3 { color: #3498db; }
+        .stat-card.drivers h3 { color: #2ecc71; }
+        .stat-card.trips h3 { color: #e74c3c; }
+        .stat-card.distance h3 { color: #f39c12; }
+        
+        /* Cards */
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card h3 { margin-bottom: 15px; color: #333; }
+        
+        /* Forms */
+        .form-container { display: none; margin-top: 15px; }
+        .form-container input, .form-container select { width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid #ddd; border-radius: 5px; }
+        
+        /* Lists */
+        .list-container { max-height: 300px; overflow-y: auto; }
+        .list-item { padding: 15px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 10px; background: #f8f9fa; }
+        
+        .hidden { display: none; }
+        .error { color: #e74c3c; text-align: center; margin-top: 10px; }
+        
+        /* Mobile Responsive */
+        @media (min-width: 768px) {
+            .hamburger { display: none; }
+            .sidebar { position: static; width: 250px; height: auto; box-shadow: none; }
+            .main-content { margin-left: 250px; margin-bottom: 0; }
+            .bottom-nav { display: none; }
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <h2>🚛 TMS Login</h2>
+            <div class="form-group">
+                <label>Email/Username</label>
+                <input type="text" id="loginUsername" placeholder="admin@tms.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="admin123">
+            </div>
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn secondary" onclick="showRegister()">Register</button>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+    </div>
+
+    <!-- Register Screen -->
+    <div id="registerScreen" class="login-container hidden">
+        <div class="login-card">
+            <h2>🚛 TMS Register</h2>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="regFullName" placeholder="Your Full Name">
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="regUsername" placeholder="username">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="regEmail" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="regPassword" placeholder="password">
+            </div>
+            <button class="btn" onclick="register()">Register</button>
+            <button class="btn secondary" onclick="showLogin()">Back to Login</button>
+            <div id="registerError" class="error hidden"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <button class="hamburger" onclick="toggleSidebar()">☰</button>
+            <h1>🚛 TMS</h1>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-item active" onclick="showSection('dashboard')">📊 Dashboard</div>
+            <div class="sidebar-item" onclick="showSection('vehicles')">🚚 Armada</div>
+            <div class="sidebar-item" onclick="showSection('orders')">📋 Pemesanan</div>
+            <div class="sidebar-item" onclick="showSection('profile')">👤 Profile</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card vehicles">
+                        <h3 id="totalVehicles">0</h3>
+                        <p>Armada</p>
+                    </div>
+                    <div class="stat-card drivers">
+                        <h3 id="totalDrivers">0</h3>
+                        <p>Driver</p>
+                    </div>
+                    <div class="stat-card trips">
+                        <h3 id="totalTrips">0</h3>
+                        <p>Pesanan</p>
+                    </div>
+                    <div class="stat-card distance">
+                        <h3 id="totalDistance">0</h3>
+                        <p>KM</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vehicles Section -->
+            <div id="vehiclesSection" class="content-section">
+                <div class="card">
+                    <h3>🚚 Manajemen Armada</h3>
+                    <button class="btn" onclick="toggleForm('vehicleForm')">Daftar Armada</button>
+                    <button class="btn secondary" onclick="loadVehicles()">Lihat Armada</button>
+                    
+                    <div id="vehicleForm" class="form-container">
+                        <input type="text" id="regNumber" placeholder="Nomor Polisi">
+                        <select id="vehicleType">
+                            <option value="">Pilih Jenis</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Bus">Bus</option>
+                            <option value="Van">Van</option>
+                        </select>
+                        <input type="text" id="brand" placeholder="Merk">
+                        <input type="text" id="model" placeholder="Model">
+                        <input type="number" id="year" placeholder="Tahun">
+                        <button class="btn" onclick="registerVehicle()">Daftar</button>
+                    </div>
+                    
+                    <div id="vehicleList" class="list-container"></div>
+                </div>
+            </div>
+
+            <!-- Orders Section -->
+            <div id="ordersSection" class="content-section">
+                <div class="card">
+                    <h3>📋 Manajemen Pemesanan</h3>
+                    <button class="btn" onclick="toggleForm('orderForm')">Buat Pesanan</button>
+                    <button class="btn secondary" onclick="loadOrders()">Lihat Pesanan</button>
+                    
+                    <div id="orderForm" class="form-container">
+                        <input type="text" id="origin" placeholder="Lokasi Asal">
+                        <input type="text" id="destination" placeholder="Lokasi Tujuan">
+                        <input type="number" id="distance" placeholder="Jarak (KM)">
+                        <select id="orderStatus">
+                            <option value="planned">Direncanakan</option>
+                            <option value="ongoing">Berjalan</option>
+                            <option value="completed">Selesai</option>
+                        </select>
+                        <button class="btn" onclick="createOrder()">Buat Pesanan</button>
+                    </div>
+                    
+                    <div id="orderList" class="list-container"></div>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profileSection" class="content-section">
+                <div class="card">
+                    <h3>👤 Profile</h3>
+                    <p><strong>Name:</strong> <span id="userName">-</span></p>
+                    <p><strong>Email:</strong> <span id="userEmail">-</span></p>
+                    <p><strong>Role:</strong> <span id="userRole">-</span></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="showSection('dashboard')">
+                <div class="icon">📊</div>
+                <div class="label">Dashboard</div>
+            </button>
+            <button class="nav-item" onclick="showSection('vehicles')">
+                <div class="icon">🚚</div>
+                <div class="label">Armada</div>
+            </button>
+            <button class="nav-item" onclick="showSection('orders')">
+                <div class="icon">📋</div>
+                <div class="label">Pesanan</div>
+            </button>
+            <button class="nav-item" onclick="showSection('profile')">
+                <div class="icon">👤</div>
+                <div class="label">Profile</div>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        let authToken = '';
+        let currentUser = null;
+
+        // Navigation
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function showSection(section) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+            
+            // Show selected section
+            document.getElementById(section + 'Section').classList.add('active');
+            document.querySelector(`[onclick="showSection('${section}')"]`).classList.add('active');
+            
+            // Close sidebar on mobile
+            document.getElementById('sidebar').classList.remove('open');
+            
+            // Load data for section
+            if (section === 'dashboard') loadDashboardData();
+            else if (section === 'vehicles') loadVehicles();
+            else if (section === 'orders') loadOrders();
+            else if (section === 'profile') showProfile();
+        }
+
+        function toggleForm(formId) {
+            const form = document.getElementById(formId);
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Authentication
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('dashboard').style.display = 'none';
+        }
+
+        function showRegister() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('dashboard').style.display = 'block';
+            loadDashboardData();
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                if (data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    showDashboard();
+                } else {
+                    showError('loginError', 'Login gagal');
+                }
+            } catch (error) {
+                showError('loginError', 'Koneksi gagal');
+            }
+        }
+
+        async function register() {
+            const fullName = document.getElementById('regFullName').value;
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({ full_name: fullName, username, email, password })
+                });
+                
+                const data = await response.json();
+                if (data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    showDashboard();
+                } else {
+                    showError('registerError', 'Registrasi gagal');
+                }
+            } catch (error) {
+                showError('registerError', 'Koneksi gagal');
+            }
+        }
+
+        function logout() {
+            authToken = '';
+            currentUser = null;
+            showLogin();
+        }
+
+        // Data functions
+        async function loadDashboardData() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/stats`, {
+                    mode: 'cors',
+                    headers: { 'Origin': 'http://localhost:3006' }
+                });
+                const data = await response.json();
+                
+                if (data.stats) {
+                    document.getElementById('totalVehicles').textContent = data.stats.total_vehicles || 0;
+                    document.getElementById('totalDrivers').textContent = data.stats.total_drivers || 0;
+                    document.getElementById('totalTrips').textContent = data.stats.total_trips || 0;
+                    document.getElementById('totalDistance').textContent = (data.stats.total_distance || 0) + ' KM';
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        async function registerVehicle() {
+            const regNumber = document.getElementById('regNumber').value;
+            const vehicleType = document.getElementById('vehicleType').value;
+            const brand = document.getElementById('brand').value;
+            const model = document.getElementById('model').value;
+            const year = parseInt(document.getElementById('year').value);
+            
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        registration_number: regNumber,
+                        vehicle_type: vehicleType,
+                        brand: brand,
+                        model: model,
+                        year: year,
+                        operational_status: 'active'
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Armada berhasil didaftarkan!');
+                    document.getElementById('vehicleForm').style.display = 'none';
+                    loadVehicles();
+                    loadDashboardData();
+                } else {
+                    alert('Gagal mendaftarkan armada.');
+                }
+            } catch (error) {
+                alert('Koneksi gagal.');
+            }
+        }
+
+        async function loadVehicles() {
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    mode: 'cors',
+                    headers: { 'Origin': 'http://localhost:3006' }
+                });
+                const data = await response.json();
+                
+                const vehicleList = document.getElementById('vehicleList');
+                if (data.vehicles && data.vehicles.length > 0) {
+                    vehicleList.innerHTML = data.vehicles.map(v => `
+                        <div class="list-item">
+                            <strong>${v.registration_number}</strong><br>
+                            ${v.brand} ${v.model} (${v.year})<br>
+                            <small>${v.vehicle_type} | ${v.operational_status}</small>
+                        </div>
+                    `).join('');
+                } else {
+                    vehicleList.innerHTML = '<p>Belum ada armada.</p>';
+                }
+            } catch (error) {
+                document.getElementById('vehicleList').innerHTML = '<p>Error loading vehicles.</p>';
+            }
+        }
+
+        async function createOrder() {
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+            const distance = parseFloat(document.getElementById('distance').value);
+            const status = document.getElementById('orderStatus').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/trips`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                        origin: origin,
+                        destination: destination,
+                        distance: distance,
+                        status: status
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Pemesanan berhasil dibuat!');
+                    document.getElementById('orderForm').style.display = 'none';
+                    loadOrders();
+                    loadDashboardData();
+                } else {
+                    alert('Gagal membuat pemesanan.');
+                }
+            } catch (error) {
+                alert('Koneksi gagal.');
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const response = await fetch(`${API_BASE}/trips`, {
+                    mode: 'cors',
+                    headers: { 'Origin': 'http://localhost:3006' }
+                });
+                const data = await response.json();
+                
+                const orderList = document.getElementById('orderList');
+                if (data.trips && data.trips.length > 0) {
+                    orderList.innerHTML = data.trips.map(t => `
+                        <div class="list-item">
+                            <strong>${t.origin} → ${t.destination}</strong><br>
+                            ${t.distance || 0} KM<br>
+                            <small>${t.status} | ${new Date(t.created_at).toLocaleDateString()}</small>
+                        </div>
+                    `).join('');
+                } else {
+                    orderList.innerHTML = '<p>Belum ada pemesanan.</p>';
+                }
+            } catch (error) {
+                document.getElementById('orderList').innerHTML = '<p>Error loading orders.</p>';
+            }
+        }
+
+        function showProfile() {
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.full_name || currentUser.username;
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userRole').textContent = currentUser.role;
+            }
+        }
+
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+            setTimeout(() => errorElement.classList.add('hidden'), 5000);
+        }
+
+        // Initialize
+        window.onload = () => {
+            showLogin();
+        };
+    </script>
+</body>
+</html>

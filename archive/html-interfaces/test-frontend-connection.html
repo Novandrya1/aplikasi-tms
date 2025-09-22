@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend Connection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>TMS Frontend Connection Test</h1>
+    <div id="results"></div>
+
+    <script>
+        async function testConnection() {
+            const results = document.getElementById('results');
+            
+            // Test 1: Ping API
+            try {
+                const response = await fetch('/api/v1/ping');
+                const data = await response.json();
+                results.innerHTML += `<div class="test success">✅ API Ping: ${data.message}</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="test error">❌ API Ping failed: ${error.message}</div>`;
+            }
+
+            // Test 2: Database Status
+            try {
+                const response = await fetch('/api/v1/db-status');
+                const data = await response.json();
+                results.innerHTML += `<div class="test success">✅ Database: ${data.message} (${data.users_count} users)</div>`;
+            } catch (error) {
+                results.innerHTML += `<div class="test error">❌ Database test failed: ${error.message}</div>`;
+            }
+
+            // Test 3: Register Test User
+            try {
+                const response = await fetch('/api/v1/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        username: 'webtest',
+                        email: 'webtest@test.com',
+                        password: 'test123',
+                        full_name: 'Web Test User'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `<div class="test success">✅ Register: User created (ID: ${data.user.id})</div>`;
+                } else {
+                    const error = await response.json();
+                    results.innerHTML += `<div class="test error">❌ Register failed: ${error.error}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="test error">❌ Register test failed: ${error.message}</div>`;
+            }
+
+            // Test 4: Login Test
+            try {
+                const response = await fetch('/api/v1/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        username: 'webtest',
+                        password: 'test123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    results.innerHTML += `<div class="test success">✅ Login: Success (Token: ${data.token.substring(0, 10)}...)</div>`;
+                } else {
+                    const error = await response.json();
+                    results.innerHTML += `<div class="test error">❌ Login failed: ${error.error}</div>`;
+                }
+            } catch (error) {
+                results.innerHTML += `<div class="test error">❌ Login test failed: ${error.message}</div>`;
+            }
+        }
+
+        // Run tests when page loads
+        window.onload = testConnection;
+    </script>
+</body>
+</html>

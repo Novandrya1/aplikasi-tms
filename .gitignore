@@ -1,0 +1,55 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Backend
+backend/server
+backend/tms-backend
+backend/coverage.out
+backend/vendor/
+
+# Frontend
+frontend/aplikasi_tms/build/
+frontend/aplikasi_tms/.dart_tool/
+frontend/aplikasi_tms/.flutter-plugins
+frontend/aplikasi_tms/.flutter-plugins-dependencies
+frontend/aplikasi_tms/.packages
+frontend/aplikasi_tms/pubspec.lock
+
+# Docker
+.docker/
+
+# Database
+*.sql
+*.db
+*.sqlite
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+
+# Large files
+*.tar.xz
+*.cache.dill.track.dill
+backend/test-server
+flutter.tar.xz
+flutter_linux_*.tar.xz

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TMS - Transport Management System</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #2c3e50; margin: 0; }
+        .header p { color: #7f8c8d; margin: 5px 0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .card { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #2c3e50; }
+        .status { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .btn { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin: 5px; }
+        .btn:hover { background: #2980b9; }
+        .btn.success { background: #27ae60; }
+        .btn.success:hover { background: #229954; }
+        #data { margin-top: 20px; }
+        .loading { text-align: center; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚛 TMS - Transport Management System</h1>
+            <p>Web Interface untuk Mobile & Desktop</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>🔧 Backend API</h3>
+                <p>Status: <span class="status success">✅ Running</span></p>
+                <p>URL: <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></p>
+                <button class="btn" onclick="testAPI()">Test API</button>
+            </div>
+
+            <div class="card">
+                <h3>🗄️ Database</h3>
+                <p>Status: <span class="status success">✅ Connected</span></p>
+                <p>Type: PostgreSQL 15</p>
+                <button class="btn" onclick="testDB()">Test Database</button>
+            </div>
+
+            <div class="card">
+                <h3>👤 Authentication</h3>
+                <p>Admin: admin@tms.com</p>
+                <p>Password: admin123</p>
+                <button class="btn success" onclick="login()">Login</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 System Data</h3>
+            <div id="data" class="loading">Loading data...</div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>🚚 Vehicles</h3>
+                <button class="btn" onclick="loadVehicles()">Load Vehicles</button>
+                <div id="vehicles"></div>
+            </div>
+
+            <div class="card">
+                <h3>👨‍💼 Drivers</h3>
+                <button class="btn" onclick="loadDrivers()">Load Drivers</button>
+                <div id="drivers"></div>
+            </div>
+
+            <div class="card">
+                <h3>🛣️ Trips</h3>
+                <button class="btn" onclick="loadTrips()">Load Trips</button>
+                <div id="trips"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        let authToken = '';
+
+        async function testAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/ping`);
+                const data = await response.json();
+                alert('API Test: ' + JSON.stringify(data));
+            } catch (error) {
+                alert('API Error: ' + error.message);
+            }
+        }
+
+        async function testDB() {
+            try {
+                const response = await fetch(`${API_BASE}/db-status`);
+                const data = await response.json();
+                alert('Database Status: ' + JSON.stringify(data));
+            } catch (error) {
+                alert('Database Error: ' + error.message);
+            }
+        }
+
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'admin@tms.com',
+                        password: 'admin123'
+                    })
+                });
+                const data = await response.json();
+                if (data.token) {
+                    authToken = data.token;
+                    alert('Login Success!');
+                    loadDashboard();
+                } else {
+                    alert('Login Failed');
+                }
+            } catch (error) {
+                alert('Login Error: ' + error.message);
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/stats`);
+                const data = await response.json();
+                document.getElementById('data').innerHTML = `
+                    <h4>📊 Dashboard Statistics</h4>
+                    <p>Total Vehicles: ${data.stats?.total_vehicles || 0}</p>
+                    <p>Total Drivers: ${data.stats?.total_drivers || 0}</p>
+                    <p>Total Trips: ${data.stats?.total_trips || 0}</p>
+                    <p>Total Distance: ${data.stats?.total_distance || 0} km</p>
+                `;
+            } catch (error) {
+                document.getElementById('data').innerHTML = 'Error loading dashboard: ' + error.message;
+            }
+        }
+
+        async function loadVehicles() {
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`);
+                const data = await response.json();
+                const html = data.vehicles?.map(v => `
+                    <p>🚚 ${v.registration_number} - ${v.brand} ${v.model} (${v.year})</p>
+                `).join('') || 'No vehicles found';
+                document.getElementById('vehicles').innerHTML = html;
+            } catch (error) {
+                document.getElementById('vehicles').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadDrivers() {
+            try {
+                const response = await fetch(`${API_BASE}/drivers`);
+                const data = await response.json();
+                const html = data.drivers?.map(d => `
+                    <p>👨‍💼 ${d.user?.full_name || 'Driver ' + d.id} - ${d.license_number}</p>
+                `).join('') || 'No drivers found';
+                document.getElementById('drivers').innerHTML = html;
+            } catch (error) {
+                document.getElementById('drivers').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        async function loadTrips() {
+            try {
+                const response = await fetch(`${API_BASE}/trips`);
+                const data = await response.json();
+                const html = data.trips?.map(t => `
+                    <p>🛣️ ${t.origin} → ${t.destination} (${t.status})</p>
+                `).join('') || 'No trips found';
+                document.getElementById('trips').innerHTML = html;
+            } catch (error) {
+                document.getElementById('trips').innerHTML = 'Error: ' + error.message;
+            }
+        }
+
+        // Auto load dashboard on page load
+        window.onload = () => {
+            loadDashboard();
+        };
+    </script>
+</body>
+</html>

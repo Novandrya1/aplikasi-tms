@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TMS Complete Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            background: white; 
+            padding: 2rem; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px; 
+            width: 90%;
+        }
+        h1 { 
+            color: #333; 
+            margin-bottom: 1.5rem; 
+            text-align: center;
+            font-size: 2rem;
+        }
+        .form-group { 
+            margin-bottom: 1rem; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 0.5rem; 
+            color: #555;
+            font-weight: 500;
+        }
+        input { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 2px solid #e1e5e9; 
+            border-radius: 8px; 
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            transition: transform 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result { 
+            margin-top: 1.5rem; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            font-size: 0.9rem;
+        }
+        .success { 
+            background: #d4edda; 
+            color: #155724; 
+            border: 1px solid #c3e6cb; 
+        }
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb; 
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚚 TMS Test Dashboard</h1>
+        
+        <div id="status" class="status info">
+            <span class="loading"></span> Checking system status...
+        </div>
+        
+        <div class="form-group">
+            <label>Email/Username:</label>
+            <input type="text" id="username" value="admin@tms.com" placeholder="Enter email or username">
+        </div>
+        
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="password" value="admin123" placeholder="Enter password">
+        </div>
+        
+        <div style="text-align: center;">
+            <button onclick="testLogin()" id="loginBtn">🔐 Test Login</button>
+            <button onclick="testRegister()" id="registerBtn">👤 Test Register</button>
+            <button onclick="testVehicles()" id="vehicleBtn">🚛 Test Vehicles</button>
+            <button onclick="runAllTests()" id="allTestBtn">🧪 Run All Tests</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let currentToken = null;
+        
+        // Check system status on load
+        window.onload = function() {
+            checkSystemStatus();
+        };
+        
+        async function checkSystemStatus() {
+            try {
+                const healthResponse = await fetch('http://localhost:8080/health');
+                const dbResponse = await fetch('http://localhost:8080/api/v1/db-status');
+                
+                if (healthResponse.ok && dbResponse.ok) {
+                    const dbData = await dbResponse.json();
+                    document.getElementById('status').innerHTML = 
+                        `✅ System Online | Users: ${dbData.users_count || 0}`;
+                    document.getElementById('status').className = 'status success';
+                } else {
+                    throw new Error('System not ready');
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    `❌ System Offline - ${error.message}`;
+                document.getElementById('status').className = 'status error';
+            }
+        }
+        
+        async function testLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('loginBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Logging in...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentToken = data.token;
+                    document.getElementById('result').innerHTML = 
+                        `<div class="success">
+                            <h3>✅ Login Successful!</h3>
+                            <p><strong>User:</strong> ${data.user.full_name}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p><strong>Role:</strong> ${data.user.role}</p>
+                            <p><strong>Token:</strong> ${data.token.substring(0, 20)}...</p>
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="error">❌ Login Failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="error">❌ Network Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🔐 Test Login';
+            }
+        }
+        
+        async function testRegister() {
+            const username = 'testuser' + Math.floor(Math.random() * 1000);
+            const email = username + '@example.com';
+            const btn = document.getElementById('registerBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Registering...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/v1/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        email,
+                        password: 'test123',
+                        full_name: 'Test User'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="success">
+                            <h3>✅ Registration Successful!</h3>
+                            <p><strong>Username:</strong> ${data.user.username}</p>
+                            <p><strong>Email:</strong> ${data.user.email}</p>
+                            <p>You can now login with these credentials.</p>
+                        </div>`;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="error">❌ Registration Failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="error">❌ Network Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '👤 Test Register';
+            }
+        }
+        
+        async function testVehicles() {
+            const btn = document.getElementById('vehicleBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Testing...';
+            
+            try {
+                // Test GET vehicles
+                const getResponse = await fetch('http://localhost:8080/api/v1/vehicles', {
+                    headers: {
+                        'Origin': 'http://localhost:3000'
+                    }
+                });
+                
+                const vehicles = await getResponse.json();
+                
+                // Test POST vehicle
+                const postResponse = await fetch('http://localhost:8080/api/v1/vehicles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        registration_number: 'B' + Math.floor(Math.random() * 9999) + 'TMS',
+                        vehicle_type: 'Truck',
+                        brand: 'Toyota',
+                        model: 'Dyna',
+                        year: 2023,
+                        chassis_number: 'CH' + Math.floor(Math.random() * 1000000),
+                        engine_number: 'EN' + Math.floor(Math.random() * 1000000),
+                        color: 'White',
+                        capacity_weight: 3.5,
+                        ownership_status: 'Owned',
+                        operational_status: 'active'
+                    })
+                });
+                
+                if (getResponse.ok) {
+                    const vehicleCount = vehicles.vehicles ? vehicles.vehicles.length : 0;
+                    let resultHtml = `<div class="success">
+                        <h3>✅ Vehicle API Working!</h3>
+                        <p><strong>Total Vehicles:</strong> ${vehicleCount}</p>`;
+                    
+                    if (postResponse.ok) {
+                        const newVehicle = await postResponse.json();
+                        resultHtml += `<p><strong>New Vehicle Created:</strong> ${newVehicle.vehicle.registration_number}</p>`;
+                    }
+                    
+                    resultHtml += `</div>`;
+                    document.getElementById('result').innerHTML = resultHtml;
+                } else {
+                    document.getElementById('result').innerHTML = 
+                        `<div class="error">❌ Vehicle API Failed</div>`;
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = 
+                    `<div class="error">❌ Network Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '🚛 Test Vehicles';
+            }
+        }
+        
+        async function runAllTests() {
+            const btn = document.getElementById('allTestBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Running All Tests...';
+            
+            document.getElementById('result').innerHTML = 
+                `<div class="info">🧪 Running comprehensive tests...</div>`;
+            
+            let results = [];
+            
+            // Test 1: System Health
+            try {
+                const healthResponse = await fetch('http://localhost:8080/health');
+                results.push(healthResponse.ok ? '✅ Health Check' : '❌ Health Check');
+            } catch (e) {
+                results.push('❌ Health Check');
+            }
+            
+            // Test 2: Database
+            try {
+                const dbResponse = await fetch('http://localhost:8080/api/v1/db-status');
+                results.push(dbResponse.ok ? '✅ Database Connection' : '❌ Database Connection');
+            } catch (e) {
+                results.push('❌ Database Connection');
+            }
+            
+            // Test 3: Authentication
+            try {
+                const loginResponse = await fetch('http://localhost:8080/api/v1/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3000'
+                    },
+                    body: JSON.stringify({
+                        username: 'admin@tms.com',
+                        password: 'admin123'
+                    })
+                });
+                results.push(loginResponse.ok ? '✅ Authentication' : '❌ Authentication');
+            } catch (e) {
+                results.push('❌ Authentication');
+            }
+            
+            // Test 4: Vehicle API
+            try {
+                const vehicleResponse = await fetch('http://localhost:8080/api/v1/vehicles');
+                results.push(vehicleResponse.ok ? '✅ Vehicle API' : '❌ Vehicle API');
+            } catch (e) {
+                results.push('❌ Vehicle API');
+            }
+            
+            const passedTests = results.filter(r => r.includes('✅')).length;
+            const totalTests = results.length;
+            
+            document.getElementById('result').innerHTML = 
+                `<div class="${passedTests === totalTests ? 'success' : 'error'}">
+                    <h3>🧪 Test Results: ${passedTests}/${totalTests} Passed</h3>
+                    ${results.map(r => `<p>${r}</p>`).join('')}
+                    <p><strong>Status:</strong> ${passedTests === totalTests ? 'All Systems Operational' : 'Some Issues Detected'}</p>
+                </div>`;
+            
+            btn.disabled = false;
+            btn.innerHTML = '🧪 Run All Tests';
+        }
+    </script>
+</body>
+</html>

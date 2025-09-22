@@ -1,0 +1,9 @@
+# SSL certificates and private keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Development certificates only
+!cert-dev.pem

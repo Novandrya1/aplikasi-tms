@@ -1,0 +1,94 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tms-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tms_db}
+      POSTGRES_USER: ${DB_USER:-tms_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tms_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    networks:
+      - tms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-tms_user} -d ${DB_NAME:-tms_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tms-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-tms_db}
+      DB_USER: ${DB_USER:-tms_user}
+      DB_PASSWORD: ${DB_PASSWORD:-tms_password}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      GIN_MODE: debug
+      ENVIRONMENT: development
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET environment variable is required}
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET environment variable is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3006}
+      BCRYPT_COST: ${BCRYPT_COST:-10}
+      TOKEN_EXPIRATION_HOURS: ${TOKEN_EXPIRATION_HOURS:-24}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tms-network
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "ps", "aux"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend/aplikasi_tms
+      dockerfile: Dockerfile
+    container_name: tms-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - tms-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4:8.2
+    container_name: tms-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@tms.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-TMS_Admin_2024!}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - tms-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  tms-network:
+    driver: bridge

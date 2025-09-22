@@ -1,0 +1,682 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>auth: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/youruser/aplikasi-tms/backend/internal/auth/auth.go (0.0%)</option>
+				
+				<option value="file1">github.com/youruser/aplikasi-tms/backend/internal/db/connection.go (0.0%)</option>
+				
+				<option value="file2">github.com/youruser/aplikasi-tms/backend/internal/middleware/auth.go (0.0%)</option>
+				
+				<option value="file3">github.com/youruser/aplikasi-tms/backend/internal/middleware/csrf.go (0.0%)</option>
+				
+				<option value="file4">github.com/youruser/aplikasi-tms/backend/internal/middleware/performance.go (0.0%)</option>
+				
+				<option value="file5">github.com/youruser/aplikasi-tms/backend/internal/middleware/sanitize.go (0.0%)</option>
+				
+				<option value="file6">github.com/youruser/aplikasi-tms/backend/internal/middleware/validation.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package auth
+
+import (
+        "database/sql"
+        "errors"
+        "os"
+        "time"
+
+        "github.com/golang-jwt/jwt/v5"
+        "golang.org/x/crypto/bcrypt"
+        "github.com/youruser/aplikasi-tms/backend/internal/models"
+)
+
+type Claims struct {
+        UserID   int    `json:"user_id"`
+        Username string `json:"username"`
+        Role     string `json:"role"`
+        jwt.RegisteredClaims
+}
+
+// Cache JWT secret untuk performance
+var jwtSecret string
+
+func init() <span class="cov0" title="0">{
+        jwtSecret = os.Getenv("JWT_SECRET")
+        if jwtSecret == "" </span><span class="cov0" title="0">{
+                jwtSecret = "default-jwt-secret-change-in-production"
+        }</span>
+}
+
+func HashPassword(password string) (string, error) <span class="cov0" title="0">{
+        // Use cost 10 for better performance while maintaining security
+        bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+        return string(bytes), err
+}</span>
+
+func CheckPassword(password, hash string) bool <span class="cov0" title="0">{
+        err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+        return err == nil
+}</span>
+
+func GenerateToken(userID int, username, role string) (string, error) <span class="cov0" title="0">{
+        if jwtSecret == "" </span><span class="cov0" title="0">{
+                return "", errors.New("JWT_SECRET not configured")
+        }</span>
+
+        <span class="cov0" title="0">claims := Claims{
+                UserID:   userID,
+                Username: username,
+                Role:     role,
+                RegisteredClaims: jwt.RegisteredClaims{
+                        ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+                        IssuedAt:  jwt.NewNumericDate(time.Now()),
+                        Issuer:    "tms-backend",
+                },
+        }
+
+        token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+        return token.SignedString([]byte(jwtSecret))</span>
+}
+
+func ValidateToken(tokenString string) (*Claims, error) <span class="cov0" title="0">{
+        if jwtSecret == "" </span><span class="cov0" title="0">{
+                return nil, errors.New("JWT_SECRET not configured")
+        }</span>
+
+        <span class="cov0" title="0">token, err := jwt.ParseWithClaims(tokenString, &amp;Claims{}, func(token *jwt.Token) (interface{}, error) </span><span class="cov0" title="0">{
+                // Validate signing method to prevent algorithm confusion attacks
+                if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok </span><span class="cov0" title="0">{
+                        return nil, errors.New("unexpected signing method")
+                }</span>
+                <span class="cov0" title="0">return []byte(jwtSecret), nil</span>
+        })
+
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">if claims, ok := token.Claims.(*Claims); ok &amp;&amp; token.Valid </span><span class="cov0" title="0">{
+                return claims, nil
+        }</span>
+
+        <span class="cov0" title="0">return nil, errors.New("invalid token")</span>
+}
+
+func CreateUser(db *sql.DB, req models.RegisterRequest) (*models.User, error) <span class="cov0" title="0">{
+        // Check if user already exists
+        var exists bool
+        checkQuery := "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 OR email = $2)"
+        err := db.QueryRow(checkQuery, req.Username, req.Email).Scan(&amp;exists)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">if exists </span><span class="cov0" title="0">{
+                return nil, errors.New("user already exists")
+        }</span>
+
+        <span class="cov0" title="0">hashedPassword, err := HashPassword(req.Password)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Default role is user, can be overridden
+        <span class="cov0" title="0">role := "user"
+        if req.Role != "" </span><span class="cov0" title="0">{
+                role = req.Role
+        }</span>
+
+        <span class="cov0" title="0">query := `INSERT INTO users (username, email, password_hash, full_name, role) 
+                          VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
+        
+        var user models.User
+        err = db.QueryRow(query, req.Username, req.Email, hashedPassword, req.FullName, role).
+                Scan(&amp;user.ID, &amp;user.CreatedAt, &amp;user.UpdatedAt)
+        
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">user.Username = req.Username
+        user.Email = req.Email
+        user.FullName = req.FullName
+        user.Role = role
+        
+        return &amp;user, nil</span>
+}
+
+func LoginUser(db *sql.DB, req models.LoginRequest) (*models.User, error) <span class="cov0" title="0">{
+        // Database connection errors will be caught by the actual query
+        
+        // Allow login with either username or email
+        query := `SELECT id, username, email, password_hash, full_name, role, created_at, updated_at 
+                          FROM users WHERE username = $1 OR email = $1`
+        
+        var user models.User
+        var passwordHash string
+        
+        err := db.QueryRow(query, req.Username).Scan(
+                &amp;user.ID, &amp;user.Username, &amp;user.Email, &amp;passwordHash, 
+                &amp;user.FullName, &amp;user.Role, &amp;user.CreatedAt, &amp;user.UpdatedAt)
+        
+        if err != nil </span><span class="cov0" title="0">{
+                if err == sql.ErrNoRows </span><span class="cov0" title="0">{
+                        return nil, errors.New("user not found")
+                }</span>
+                <span class="cov0" title="0">return nil, errors.New("database error: " + err.Error())</span>
+        }
+
+        <span class="cov0" title="0">if !CheckPassword(req.Password, passwordHash) </span><span class="cov0" title="0">{
+                return nil, errors.New("invalid password")
+        }</span>
+
+        <span class="cov0" title="0">return &amp;user, nil</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package db
+
+import (
+        "database/sql"
+        "fmt"
+        "os"
+        "sync"
+        "time"
+
+        _ "github.com/lib/pq"
+)
+
+var (
+        db   *sql.DB
+        once sync.Once
+        mu   sync.Mutex
+)
+
+// GetDB returns singleton database connection
+func GetDB() (*sql.DB, error) <span class="cov0" title="0">{
+        var err error
+        once.Do(func() </span><span class="cov0" title="0">{
+                db, err = initDB()
+        }</span>)
+        <span class="cov0" title="0">return db, err</span>
+}
+
+// Connect maintains backward compatibility with connection health check
+func Connect() (*sql.DB, error) <span class="cov0" title="0">{
+        db, err := GetDB()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        
+        // Health check - if connection is dead, recreate it
+        <span class="cov0" title="0">if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
+                // Thread-safe singleton reset
+                mu.Lock()
+                defer mu.Unlock()
+                // Double-check pattern to prevent race condition
+                if db != nil </span><span class="cov0" title="0">{
+                        db.Close()
+                        db = nil
+                        once = sync.Once{}
+                }</span>
+                <span class="cov0" title="0">mu.Unlock()
+                return GetDB()</span>
+        }
+        
+        <span class="cov0" title="0">return db, nil</span>
+}
+
+func initDB() (*sql.DB, error) <span class="cov0" title="0">{
+        host := os.Getenv("DB_HOST")
+        if host == "" </span><span class="cov0" title="0">{
+                host = "localhost"
+        }</span>
+        
+        <span class="cov0" title="0">port := os.Getenv("DB_PORT")
+        if port == "" </span><span class="cov0" title="0">{
+                port = "5432"
+        }</span>
+        
+        <span class="cov0" title="0">user := os.Getenv("DB_USER")
+        if user == "" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("DB_USER environment variable is required")
+        }</span>
+        
+        <span class="cov0" title="0">password := os.Getenv("DB_PASSWORD")
+        if password == "" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("DB_PASSWORD environment variable is required")
+        }</span>
+        
+        <span class="cov0" title="0">dbname := os.Getenv("DB_NAME")
+        if dbname == "" </span><span class="cov0" title="0">{
+                dbname = "tms_db"
+        }</span>
+
+        <span class="cov0" title="0">sslMode := os.Getenv("DB_SSLMODE")
+        if sslMode == "" </span><span class="cov0" title="0">{
+                sslMode = "disable"
+        }</span>
+        
+        <span class="cov0" title="0">psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+                host, port, user, password, dbname, sslMode)
+
+        connection, err := sql.Open("postgres", psqlInfo)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        // Production-optimized connection pool settings
+        <span class="cov0" title="0">connection.SetMaxOpenConns(25)  // Reduced for stability
+        connection.SetMaxIdleConns(5)   // Reduced idle connections
+        connection.SetConnMaxLifetime(5 * time.Minute)  // Shorter lifetime
+        connection.SetConnMaxIdleTime(2 * time.Minute)  // Shorter idle time
+
+        if err = connection.Ping(); err != nil </span><span class="cov0" title="0">{
+                connection.Close()
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return connection, nil</span>
+}</pre>
+		
+		<pre class="file" id="file2" style="display: none">package middleware
+
+import (
+        "log"
+        "net/http"
+        "strings"
+
+        "github.com/gin-gonic/gin"
+        "github.com/youruser/aplikasi-tms/backend/internal/auth"
+)
+
+// AuthRequired middleware for protected routes
+func AuthRequired() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                token := c.GetHeader("Authorization")
+                if token == "" </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+                        c.Abort()
+                        return
+                }</span>
+
+                // Remove Bearer prefix
+                <span class="cov0" title="0">if len(token) &gt; 7 &amp;&amp; strings.ToLower(token[:7]) == "bearer " </span><span class="cov0" title="0">{
+                        token = strings.TrimSpace(token[7:])
+                }</span>
+
+                <span class="cov0" title="0">if token == "" </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+                        c.Abort()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">claims, err := auth.ValidateToken(token)
+                if err != nil </span><span class="cov0" title="0">{
+                        // Log authentication failure for security monitoring
+                        clientIP := SanitizeForLog(c.ClientIP())
+                        userAgent := SanitizeForLog(c.GetHeader("User-Agent"))
+                        log.Printf("Authentication failed - IP: %s, User-Agent: %s, Error: %v", clientIP, userAgent, err)
+                        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+                        c.Abort()
+                        return
+                }</span>
+
+                // Set user info in context
+                <span class="cov0" title="0">c.Set("user_id", claims.UserID)
+                c.Set("username", claims.Username)
+                c.Set("user_role", claims.Role)
+                c.Next()</span>
+        }
+}
+
+// AdminRequired middleware for admin-only routes
+func AdminRequired() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                role, exists := c.Get("user_role")
+                if !exists || role != "admin" </span><span class="cov0" title="0">{
+                        // Log unauthorized admin access attempt
+                        userID, _ := c.Get("user_id")
+                        username, _ := c.Get("username")
+                        
+                        // Safe type assertion untuk username
+                        var usernameStr string
+                        if uname, ok := username.(string); ok </span><span class="cov0" title="0">{
+                                usernameStr = uname
+                        }</span> else<span class="cov0" title="0"> {
+                                usernameStr = "unknown"
+                        }</span>
+                        
+                        <span class="cov0" title="0">log.Printf("Unauthorized admin access attempt - UserID: %v, Username: %s, IP: %s", 
+                                userID, SanitizeForLog(usernameStr), SanitizeForLog(c.ClientIP()))
+                        c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+                        c.Abort()
+                        return</span>
+                }
+                <span class="cov0" title="0">c.Next()</span>
+        }
+}</pre>
+		
+		<pre class="file" id="file3" style="display: none">package middleware
+
+import (
+        "crypto/rand"
+        "encoding/hex"
+        "net/http"
+        "os"
+        "strings"
+
+        "github.com/gin-gonic/gin"
+)
+
+var csrfSecret string
+
+func init() <span class="cov0" title="0">{
+        csrfSecret = os.Getenv("CSRF_SECRET")
+        if csrfSecret == "" </span><span class="cov0" title="0">{
+                csrfSecret = "default-csrf-secret-change-in-production"
+        }</span>
+}
+
+// CSRFProtection middleware untuk melindungi dari CSRF attacks
+func CSRFProtection() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                // Skip CSRF untuk GET, HEAD, OPTIONS
+                if c.Request.Method == "GET" || c.Request.Method == "HEAD" || c.Request.Method == "OPTIONS" </span><span class="cov0" title="0">{
+                        c.Next()
+                        return
+                }</span>
+
+                // Validasi origin untuk semua mode
+                <span class="cov0" title="0">origin := c.GetHeader("Origin")
+                referer := c.GetHeader("Referer")
+                allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+                if allowedOrigins == "" </span><span class="cov0" title="0">{
+                        allowedOrigins = "http://localhost:3000,http://localhost:3001,http://localhost:3005,http://localhost:3006"
+                }</span>
+                
+                <span class="cov0" title="0">validOrigin := false
+                for _, allowed := range strings.Split(allowedOrigins, ",") </span><span class="cov0" title="0">{
+                        allowed = strings.TrimSpace(allowed)
+                        if origin == allowed || strings.HasPrefix(referer, allowed) </span><span class="cov0" title="0">{
+                                validOrigin = true
+                                break</span>
+                        }
+                }
+
+                <span class="cov0" title="0">if !validOrigin </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusForbidden, gin.H{"error": "Invalid origin"})
+                        c.Abort()
+                        return
+                }</span>
+
+                // Validasi CSRF token untuk semua POST/PUT/DELETE requests
+                <span class="cov0" title="0">if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "DELETE" </span><span class="cov0" title="0">{
+                        // Cek Content-Type untuk JSON requests
+                        contentType := c.GetHeader("Content-Type")
+                        if strings.Contains(contentType, "application/json") </span><span class="cov0" title="0">{
+                                // Untuk JSON requests, validasi origin sudah cukup
+                                // Tapi tetap cek CSRF token jika ada
+                                csrfToken := c.GetHeader("X-CSRF-Token")
+                                ginMode := os.Getenv("GIN_MODE")
+                                if ginMode == "release" &amp;&amp; csrfToken == "" </span><span class="cov0" title="0">{
+                                        c.JSON(http.StatusForbidden, gin.H{"error": "CSRF token required in production"})
+                                        c.Abort()
+                                        return
+                                }</span>
+                                // Skip CSRF validation in debug mode
+                                <span class="cov0" title="0">if ginMode != "release" </span>{<span class="cov0" title="0">
+                                        // Allow requests without CSRF token in development
+                                }</span>
+                        }
+                }
+
+                <span class="cov0" title="0">c.Next()</span>
+        }
+}
+
+// GenerateCSRFToken menghasilkan CSRF token
+func GenerateCSRFToken() (string, error) <span class="cov0" title="0">{
+        bytes := make([]byte, 32)
+        if _, err := rand.Read(bytes); err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov0" title="0">return hex.EncodeToString(bytes), nil</span>
+}</pre>
+		
+		<pre class="file" id="file4" style="display: none">package middleware
+
+import (
+        "fmt"
+        "log"
+        "time"
+
+        "github.com/gin-gonic/gin"
+)
+
+// RequestLogger logs request duration and details
+func RequestLogger() gin.HandlerFunc <span class="cov0" title="0">{
+        return gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string </span><span class="cov0" title="0">{
+                return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
+                        SanitizeForLog(param.ClientIP),
+                        param.TimeStamp.Format(time.RFC1123),
+                        SanitizeForLog(param.Method),
+                        SanitizeForLog(param.Path),
+                        SanitizeForLog(param.Request.Proto),
+                        param.StatusCode,
+                        param.Latency,
+                        SanitizeForLog(param.Request.UserAgent()),
+                        SanitizeForLog(param.ErrorMessage),
+                )
+        }</span>)
+}
+
+// PerformanceMonitor tracks slow requests
+func PerformanceMonitor() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                start := time.Now()
+                c.Next()
+                
+                duration := time.Since(start)
+                if duration &gt; 1*time.Second </span><span class="cov0" title="0">{
+                        log.Printf("SLOW REQUEST: %s %s took %v", 
+                                SanitizeForLog(c.Request.Method), 
+                                SanitizeForLog(c.Request.URL.Path), 
+                                duration)
+                }</span>
+        }
+}
+
+// Compression middleware for response compression
+func Compression() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                // Simple compression headers
+                c.Header("Vary", "Accept-Encoding")
+                c.Next()
+        }</span>
+}</pre>
+		
+		<pre class="file" id="file5" style="display: none">package middleware
+
+import (
+        "strings"
+)
+
+// SanitizeForLog sanitizes input for safe logging
+func SanitizeForLog(input string) string <span class="cov0" title="0">{
+        // Remove newlines and carriage returns to prevent log injection
+        sanitized := strings.ReplaceAll(input, "\n", " ")
+        sanitized = strings.ReplaceAll(sanitized, "\r", " ")
+        sanitized = strings.ReplaceAll(sanitized, "\t", " ")
+        
+        // Limit length to prevent log flooding
+        if len(sanitized) &gt; 100 </span><span class="cov0" title="0">{
+                sanitized = sanitized[:100] + "..."
+        }</span>
+        
+        <span class="cov0" title="0">return sanitized</span>
+}</pre>
+		
+		<pre class="file" id="file6" style="display: none">package middleware
+
+import (
+        "html"
+        "net/http"
+        "regexp"
+        "strings"
+
+        "github.com/gin-gonic/gin"
+)
+
+// Pre-compiled regex untuk performance
+var (
+        controlCharsRegex = regexp.MustCompile(`[\x00-\x1f\x7f]`)
+        logInjectionRegex = regexp.MustCompile(`[\r\n\t]`)
+        sqlInjectionRegex = regexp.MustCompile(`(?i)(union|select|insert|update|delete|drop|create|alter|exec|script|javascript|vbscript|onload|onerror)`)
+)
+
+// SanitizeInput removes potentially dangerous characters from input
+func SanitizeInput(input string) string <span class="cov0" title="0">{
+        // Remove null bytes and control characters
+        input = strings.ReplaceAll(input, "\x00", "")
+        input = controlCharsRegex.ReplaceAllString(input, "")
+        
+        // Trim whitespace
+        input = strings.TrimSpace(input)
+        
+        return input
+}</span>
+
+
+
+// DetectSQLInjection checks for common SQL injection patterns
+func DetectSQLInjection(input string) bool <span class="cov0" title="0">{
+        return sqlInjectionRegex.MatchString(input)
+}</span>
+
+// SanitizeForHTML escapes HTML characters
+func SanitizeForHTML(input string) string <span class="cov0" title="0">{
+        return html.EscapeString(SanitizeInput(input))
+}</span>
+
+// ValidateInput middleware for input sanitization
+func ValidateInput() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                // Skip validation for GET requests
+                if c.Request.Method == "GET" </span><span class="cov0" title="0">{
+                        c.Next()
+                        return
+                }</span>
+
+                // Validate Content-Type for POST/PUT requests
+                <span class="cov0" title="0">contentType := c.GetHeader("Content-Type")
+                if !strings.Contains(contentType, "application/json") </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusBadRequest, gin.H{"error": "Content-Type must be application/json"})
+                        c.Abort()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">c.Next()</span>
+        }
+}
+
+// RateLimitByIP simple rate limiting (for production use Redis)
+func RateLimitByIP() gin.HandlerFunc <span class="cov0" title="0">{
+        return func(c *gin.Context) </span><span class="cov0" title="0">{
+                // Simple rate limiting - in production use Redis
+                c.Next()
+        }</span>
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

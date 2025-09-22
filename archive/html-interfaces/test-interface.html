@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TMS Test Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 8px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; }
+        .result { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; white-space: pre-wrap; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚚 TMS Test Interface</h1>
+        
+        <div class="section">
+            <h3>🔐 Authentication</h3>
+            <div style="margin-bottom: 15px;">
+                <h4>Login</h4>
+                <input type="email" id="email" placeholder="Email" value="admin@tms.com">
+                <input type="password" id="password" placeholder="Password" value="admin123">
+                <button onclick="login()">Login</button>
+                <button onclick="logout()">Logout</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <h4>Register</h4>
+                <input type="text" id="regUsername" placeholder="Username">
+                <input type="email" id="regEmail" placeholder="Email">
+                <input type="password" id="regPassword" placeholder="Password">
+                <input type="text" id="regFullName" placeholder="Full Name">
+                <button onclick="register()">Register</button>
+            </div>
+            <div id="auth-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🚚 Vehicle Management</h3>
+            <input type="text" id="regNumber" placeholder="Registration Number" value="B1234ABC">
+            <input type="text" id="vehicleType" placeholder="Vehicle Type" value="Truck">
+            <input type="text" id="brand" placeholder="Brand" value="Mitsubishi">
+            <input type="text" id="model" placeholder="Model" value="Canter">
+            <input type="number" id="year" placeholder="Year" value="2023">
+            <button onclick="addVehicle()">Add Vehicle</button>
+            <button onclick="getVehicles()">Get All Vehicles</button>
+            <div id="vehicle-result" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 System Tests</h3>
+            <button onclick="testPing()">Test API Ping</button>
+            <button onclick="testDbStatus()">Test Database</button>
+            <button onclick="testAll()">Test All</button>
+            <div id="test-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        let authToken = '';
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+            element.className = `result ${isError ? 'error' : 'success'}`;
+        }
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+            
+            if (authToken) {
+                options.headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    return { success: false, data: { error: `HTTP ${response.status}: ${errorText}` } };
+                }
+                const result = await response.json();
+                return { success: true, data: result };
+            } catch (error) {
+                console.error('API Call Error:', error);
+                return { success: false, data: { error: `Network Error: ${error.message}` } };
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                showResult('auth-result', { error: 'Email dan password harus diisi' }, true);
+                return;
+            }
+            
+            const result = await apiCall('/login', 'POST', {
+                username: email,
+                password: password
+            });
+            
+            if (result.success && result.data.token) {
+                authToken = result.data.token;
+                showResult('auth-result', { 
+                    message: '✅ Login berhasil!', 
+                    user: result.data.user.username,
+                    role: result.data.user.role 
+                });
+            } else {
+                showResult('auth-result', { 
+                    error: result.data.error || 'Login gagal. Periksa email/username dan password.' 
+                }, true);
+            }
+        }
+
+        function logout() {
+            authToken = '';
+            showResult('auth-result', { message: 'Logged out' });
+        }
+
+        async function register() {
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const fullName = document.getElementById('regFullName').value;
+            
+            if (!username || !email || !password || !fullName) {
+                showResult('auth-result', { error: 'Semua field harus diisi' }, true);
+                return;
+            }
+            
+            const result = await apiCall('/register', 'POST', {
+                username: username,
+                email: email,
+                password: password,
+                full_name: fullName
+            });
+            
+            if (result.success && result.data.token) {
+                authToken = result.data.token;
+                showResult('auth-result', { 
+                    message: '✅ Registrasi berhasil! Anda sudah login otomatis.', 
+                    user: result.data.user.username,
+                    role: result.data.user.role 
+                });
+                // Clear registration form
+                document.getElementById('regUsername').value = '';
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPassword').value = '';
+                document.getElementById('regFullName').value = '';
+            } else {
+                showResult('auth-result', { 
+                    error: result.data.error || 'Registrasi gagal. Username atau email mungkin sudah digunakan.' 
+                }, true);
+            }
+        }
+
+        async function addVehicle() {
+            if (!authToken) {
+                showResult('vehicle-result', { error: 'Silakan login terlebih dahulu' }, true);
+                return;
+            }
+            
+            const vehicleData = {
+                registration_number: document.getElementById('regNumber').value,
+                vehicle_type: document.getElementById('vehicleType').value,
+                brand: document.getElementById('brand').value,
+                model: document.getElementById('model').value,
+                year: parseInt(document.getElementById('year').value),
+                chassis_number: 'CH' + Date.now(),
+                engine_number: 'EN' + Date.now(),
+                color: 'White',
+                capacity_weight: 5.0,
+                ownership_status: 'Owned',
+                operational_status: 'active'
+            };
+
+            const result = await apiCall('/vehicles', 'POST', vehicleData);
+            if (result.success) {
+                showResult('vehicle-result', { message: '✅ Kendaraan berhasil ditambahkan!', vehicle: result.data.vehicle });
+            } else {
+                showResult('vehicle-result', { error: result.data.error || 'Gagal menambahkan kendaraan' }, true);
+            }
+        }
+
+        async function getVehicles() {
+            const result = await apiCall('/vehicles');
+            showResult('vehicle-result', result.data, !result.success);
+        }
+
+        async function testPing() {
+            const result = await apiCall('/ping');
+            showResult('test-result', result.data, !result.success);
+        }
+
+        async function testDbStatus() {
+            const result = await apiCall('/db-status');
+            showResult('test-result', result.data, !result.success);
+        }
+
+        async function testAll() {
+            const tests = [
+                { name: 'API Ping', endpoint: '/ping' },
+                { name: 'Database Status', endpoint: '/db-status' },
+                { name: 'Vehicles List', endpoint: '/vehicles' }
+            ];
+
+            let results = {};
+            for (const test of tests) {
+                const result = await apiCall(test.endpoint);
+                results[test.name] = result.success ? '✅ OK' : '❌ Failed';
+            }
+            
+            showResult('test-result', results);
+        }
+
+        // Auto-test on load
+        window.onload = () => {
+            testPing();
+        };
+    </script>
+</body>
+</html>

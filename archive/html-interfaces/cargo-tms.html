@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cargo.in - Sistem Manajemen Transportasi</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; color: #334155; }
+        
+        /* Login Screen */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; z-index: 2000; }
+        .login-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .login-header { text-align: center; margin-bottom: 32px; }
+        .logo-text { font-size: 32px; font-weight: 700; color: #2563eb; margin-bottom: 8px; }
+        .login-subtitle { color: #64748b; font-size: 16px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; margin-bottom: 6px; color: #374151; font-weight: 500; }
+        .form-input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; transition: border-color 0.3s; }
+        .form-input:focus { outline: none; border-color: #2563eb; }
+        .btn { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 0.3s; }
+        .btn:hover { background: #1d4ed8; }
+        .btn.secondary { background: #64748b; margin-top: 12px; }
+        .btn.secondary:hover { background: #475569; }
+        .error { color: #dc2626; text-align: center; margin-top: 12px; font-size: 14px; }
+        .hidden { display: none; }
+        
+        /* Header */
+        .header { background: white; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: fixed; top: 0; left: 0; right: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .hamburger { background: none; border: none; font-size: 24px; cursor: pointer; color: #374151; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-text { font-size: 24px; font-weight: 700; color: #2563eb; }
+        .module-label { background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-profile { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; background: #f1f5f9; }
+        .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+        .notifications { padding: 6px; border-radius: 6px; background: #f1f5f9; cursor: pointer; }
+        .settings { padding: 6px; border-radius: 6px; background: #f1f5f9; cursor: pointer; }
+        
+        /* Sidebar */
+        .sidebar { position: fixed; top: 80px; left: -300px; width: 300px; height: calc(100vh - 80px); background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; overflow-y: auto; }
+        .sidebar.open { left: 0; }
+        .sidebar-item { padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.3s; display: flex; align-items: center; gap: 12px; }
+        .sidebar-item:hover { background: #f8fafc; }
+        .sidebar-item.active { background: #eff6ff; color: #2563eb; }
+        .sidebar-icon { font-size: 20px; }
+        
+        /* Bottom Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; z-index: 1000; }
+        .nav-item { flex: 1; padding: 12px 8px; text-align: center; cursor: pointer; transition: background 0.3s; border: none; background: none; }
+        .nav-item:hover { background: #f8fafc; }
+        .nav-item.active { background: #eff6ff; color: #2563eb; }
+        .nav-icon { font-size: 20px; margin-bottom: 4px; }
+        .nav-label { font-size: 12px; }
+        
+        /* Main Content */
+        .main-content { margin-top: 80px; margin-bottom: 80px; padding: 20px; display: none; }
+        .main-content.active { display: block; }
+        
+        /* Fleet List Page */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-title { font-size: 28px; font-weight: 700; color: #0f172a; }
+        .add-fleet-btn { background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .add-fleet-btn:hover { background: #1d4ed8; }
+        
+        /* Progress Bar */
+        .progress-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .progress-title { font-weight: 600; color: #0f172a; }
+        .progress-percentage { color: #2563eb; font-weight: 600; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #3b82f6); width: 60%; transition: width 0.3s; }
+        
+        /* Fleet Table */
+        .fleet-container { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .fleet-table { width: 100%; }
+        .fleet-table th { background: #f8fafc; padding: 16px; text-align: left; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        .fleet-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; }
+        .fleet-row { cursor: pointer; transition: background 0.2s; }
+        .fleet-row:hover { background: #f8fafc; }
+        .fleet-info { display: flex; align-items: center; gap: 12px; }
+        .vehicle-thumbnail { width: 48px; height: 48px; border-radius: 8px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .fleet-details h4 { font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .fleet-details p { color: #64748b; font-size: 14px; }
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-idle { background: #f1f5f9; color: #475569; }
+        .status-maintenance { background: #fecaca; color: #991b1b; }
+        .actions { display: flex; gap: 8px; }
+        .action-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; }
+        .action-btn:hover { background: #f8fafc; }
+        
+        /* Add Fleet Form */
+        .form-container { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 32px; }
+        .form-title { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 24px; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-select { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; }
+        .form-textarea { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; min-height: 100px; resize: vertical; }
+        .file-upload { border: 2px dashed #e2e8f0; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.3s; }
+        .file-upload:hover { border-color: #2563eb; }
+        .file-upload input { display: none; }
+        .upload-text { color: #64748b; margin-top: 8px; }
+        .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 32px; }
+        .btn-cancel { background: #64748b; }
+        .btn-cancel:hover { background: #475569; }
+        
+        /* Validation */
+        .form-input.error, .form-select.error { border-color: #dc2626; }
+        .validation-message { color: #dc2626; font-size: 12px; margin-top: 4px; }
+        
+        /* Responsive */
+        @media (min-width: 768px) {
+            .hamburger { display: none; }
+            .sidebar { position: static; width: 250px; height: auto; box-shadow: none; }
+            .main-content { margin-left: 250px; margin-bottom: 0; }
+            .bottom-nav { display: none; }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content { padding: 16px; }
+            .page-header { flex-direction: column; gap: 16px; align-items: stretch; }
+            .form-grid { grid-template-columns: 1fr; }
+            .fleet-table { font-size: 14px; }
+            .fleet-table th, .fleet-table td { padding: 12px 8px; }
+            .header-right .user-profile span { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-text">Cargo.in</div>
+                <div class="login-subtitle">Sistem Manajemen Transportasi</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email/Username</label>
+                <input type="text" class="form-input" id="loginUsername" placeholder="admin@tms.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" id="loginPassword" placeholder="admin123">
+            </div>
+            <button class="btn" onclick="login()">Masuk</button>
+            <button class="btn secondary" onclick="showRegister()">Daftar</button>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+    </div>
+
+    <!-- Register Screen -->
+    <div id="registerScreen" class="login-container hidden">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-text">Cargo.in</div>
+                <div class="login-subtitle">Daftar Akun Baru</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nama Lengkap</label>
+                <input type="text" class="form-input" id="regFullName" placeholder="Nama Lengkap Anda">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-input" id="regUsername" placeholder="username">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="regEmail" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" id="regPassword" placeholder="password">
+            </div>
+            <button class="btn" onclick="register()">Daftar</button>
+            <button class="btn secondary" onclick="showLogin()">Kembali ke Login</button>
+            <div id="registerError" class="error hidden"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div id="appHeader" class="header hidden">
+        <div class="header-left">
+            <button class="hamburger" onclick="toggleSidebar()">☰</button>
+            <div class="logo">
+                <div class="logo-text">Cargo.in</div>
+                <div class="module-label">TMS</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">FO</div>
+                <span id="userRole">Fleet Owner</span>
+            </div>
+            <div class="notifications">🔔</div>
+            <div class="settings">⚙️</div>
+            <button class="btn" onclick="logout()" style="width: auto; padding: 6px 12px; font-size: 14px;">Keluar</button>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-item active" onclick="showPage('fleetList')">
+            <span class="sidebar-icon">🚚</span>
+            <span>Daftar Armada</span>
+        </div>
+        <div class="sidebar-item" onclick="showPage('addFleet')">
+            <span class="sidebar-icon">+</span>
+            <span>Tambah Armada</span>
+        </div>
+        <div class="sidebar-item" onclick="showPage('dashboard')">
+            <span class="sidebar-icon">📈</span>
+            <span>Dashboard</span>
+        </div>
+        <div class="sidebar-item" onclick="showPage('drivers')">
+            <span class="sidebar-icon">👨‍💼</span>
+            <span>Driver</span>
+        </div>
+        <div class="sidebar-item" onclick="showPage('trips')">
+            <span class="sidebar-icon">🗺️</span>
+            <span>Perjalanan</span>
+        </div>
+    </div>
+
+    <!-- Fleet List Page -->
+    <div id="fleetListPage" class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Daftar Armada</h1>
+            <button class="add-fleet-btn" onclick="showAddFleetForm()">
+                <span>+</span>
+                Tambah Armada
+            </button>
+        </div>
+
+        <div class="progress-container">
+            <div class="progress-header">
+                <div class="progress-title">Lengkapi Profil Armada Anda</div>
+                <div class="progress-percentage">60%</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="fleet-container">
+            <table class="fleet-table">
+                <thead>
+                    <tr>
+                        <th>Info Armada</th>
+                        <th>Plat Nomor</th>
+                        <th>Jenis</th>
+                        <th>Kapasitas</th>
+                        <th>Tahun</th>
+                        <th>Driver</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="fleetTableBody">
+                    <!-- Fleet rows will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Fleet Form Page -->
+    <div id="addFleetPage" class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">Tambah Armada Baru</h1>
+            <button class="btn secondary" onclick="showFleetList()">Kembali ke Daftar</button>
+        </div>
+
+        <div class="form-container">
+            <form id="addFleetForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Nama Armada / Nickname *</label>
+                        <input type="text" class="form-input" id="fleetName" placeholder="contoh: Truk Petir" required>
+                        <div class="validation-message" id="fleetNameError"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Plat Nomor *</label>
+                        <input type="text" class="form-input" id="licensePlate" placeholder="contoh: B1234ABC" required>
+                        <div class="validation-message" id="licensePlateError"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Jenis Kendaraan *</label>
+                        <select class="form-select" id="vehicleType" required>
+                            <option value="">Pilih Jenis Kendaraan</option>
+                            <option value="Pickup">Pickup</option>
+                            <option value="Box Truck">Box Truck</option>
+                            <option value="Trailer">Trailer</option>
+                            <option value="Motorcycle">Motor</option>
+                            <option value="Van">Van</option>
+                        </select>
+                        <div class="validation-message" id="vehicleTypeError"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kapasitas</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="number" class="form-input" id="capacity" placeholder="5000" style="flex: 2;">
+                            <select class="form-select" id="capacityUnit" style="flex: 1;">
+                                <option value="Kg">Kg</option>
+                                <option value="m³">m³</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Merk</label>
+                        <input type="text" class="form-input" id="brand" placeholder="contoh: Toyota">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <input type="text" class="form-input" id="model" placeholder="contoh: Hiace">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tahun Pembuatan</label>
+                        <select class="form-select" id="year">
+                            <option value="">Pilih Tahun</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status Kendaraan</label>
+                        <select class="form-select" id="status">
+                            <option value="active">Aktif</option>
+                            <option value="idle">Menganggur</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Driver yang Ditugaskan</label>
+                        <select class="form-select" id="assignedDriver">
+                            <option value="">Belum Ditugaskan</option>
+                            <option value="1">Driver 1</option>
+                            <option value="2">Driver 2</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Upload Foto Kendaraan</label>
+                        <div class="file-upload" onclick="document.getElementById('vehiclePhoto').click()">
+                            <div>📷</div>
+                            <div class="upload-text">Klik untuk upload foto kendaraan</div>
+                            <input type="file" id="vehiclePhoto" accept="image/*">
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Upload Dokumen Kendaraan</label>
+                        <div class="file-upload" onclick="document.getElementById('vehicleDocuments').click()">
+                            <div>📄</div>
+                            <div class="upload-text">Upload STNK, Asuransi, dll</div>
+                            <input type="file" id="vehicleDocuments" multiple accept=".pdf,.jpg,.jpeg,.png">
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="form-label">Catatan / Informasi Tambahan</label>
+                        <textarea class="form-textarea" id="notes" placeholder="Catatan tambahan tentang kendaraan..."></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="showFleetList()">Batal</button>
+                    <button type="submit" class="btn">Simpan Armada</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="showPage('fleetList')">
+            <div class="nav-icon">🚚</div>
+            <div class="nav-label">Armada</div>
+        </button>
+        <button class="nav-item" onclick="showPage('addFleet')">
+            <div class="nav-icon">+</div>
+            <div class="nav-label">Tambah</div>
+        </button>
+        <button class="nav-item" onclick="showPage('dashboard')">
+            <div class="nav-icon">📈</div>
+            <div class="nav-label">Dashboard</div>
+        </button>
+        <button class="nav-item" onclick="showPage('drivers')">
+            <div class="nav-icon">👨💼</div>
+            <div class="nav-label">Driver</div>
+        </button>
+        <button class="nav-item" onclick="showPage('trips')">
+            <div class="nav-icon">🗺️</div>
+            <div class="nav-label">Trip</div>
+        </button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        let authToken = '';
+        let currentUser = null;
+        let fleets = [];
+
+        // Initialize
+        window.onload = () => {
+            populateYearOptions();
+            showLogin();
+        };
+
+        // Populate year options
+        function populateYearOptions() {
+            const yearSelect = document.getElementById('year');
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 1990; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            }
+        }
+
+        // Authentication
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('appHeader').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.bottom-nav').style.display = 'none';
+            document.getElementById('fleetListPage').classList.remove('active');
+            document.getElementById('addFleetPage').classList.remove('active');
+        }
+
+        function showRegister() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+            document.getElementById('appHeader').classList.add('hidden');
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.bottom-nav').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('appHeader').classList.remove('hidden');
+            document.querySelector('.bottom-nav').style.display = 'flex';
+            showFleetList();
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                if (data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    updateUserProfile();
+                    showApp();
+                } else {
+                    showError('loginError', 'Login gagal. Periksa email/username dan password.');
+                }
+            } catch (error) {
+                showError('loginError', 'Koneksi ke server gagal.');
+            }
+        }
+
+        async function register() {
+            const fullName = document.getElementById('regFullName').value;
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({ full_name: fullName, username, email, password })
+                });
+                
+                const data = await response.json();
+                if (data.token) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    updateUserProfile();
+                    showApp();
+                } else {
+                    showError('registerError', 'Registrasi gagal. Email/username mungkin sudah digunakan.');
+                }
+            } catch (error) {
+                showError('registerError', 'Koneksi ke server gagal.');
+            }
+        }
+
+        function logout() {
+            authToken = '';
+            currentUser = null;
+            // Reset all navigation elements
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            showLogin();
+        }
+
+        function updateUserProfile() {
+            if (currentUser) {
+                const initials = currentUser.full_name ? currentUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase() : 'FO';
+                document.getElementById('userAvatar').textContent = initials;
+                document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrator' : 'Fleet Owner';
+            }
+        }
+
+        // Navigation
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function showPage(page) {
+            // Hide all pages
+            document.querySelectorAll('.main-content').forEach(p => p.classList.remove('active'));
+            
+            // Remove active states
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            // Show selected page
+            if (page === 'fleetList') {
+                showFleetList();
+            } else if (page === 'addFleet') {
+                showAddFleetForm();
+            } else {
+                // For other pages, just show fleet list for now
+                showFleetList();
+            }
+            
+            // Update active states
+            document.querySelector(`[onclick="showPage('${page}')"]`).classList.add('active');
+            
+            // Close sidebar on mobile
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function showFleetList() {
+            document.getElementById('fleetListPage').classList.add('active');
+            document.getElementById('addFleetPage').classList.remove('active');
+            loadFleets();
+        }
+
+        function showAddFleetForm() {
+            document.getElementById('fleetListPage').classList.remove('active');
+            document.getElementById('addFleetPage').classList.add('active');
+        }
+
+        // Fleet management
+        async function loadFleets() {
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    mode: 'cors',
+                    headers: { 'Origin': 'http://localhost:3006' }
+                });
+                const data = await response.json();
+                
+                if (data.vehicles) {
+                    fleets = data.vehicles.map(v => ({
+                        id: v.id,
+                        name: v.registration_number,
+                        licensePlate: v.registration_number,
+                        type: v.vehicle_type,
+                        capacity: '5000 Kg',
+                        brand: v.brand,
+                        model: v.model,
+                        year: v.year,
+                        driver: 'Belum Ditugaskan',
+                        status: v.operational_status === 'active' ? 'active' : 'idle',
+                        thumbnail: getVehicleIcon(v.vehicle_type)
+                    }));
+                } else {
+                    fleets = [];
+                }
+                
+                renderFleetTable();
+            } catch (error) {
+                console.error('Error loading fleets:', error);
+                fleets = [];
+                renderFleetTable();
+            }
+        }
+
+        function getVehicleIcon(type) {
+            const icons = {
+                'Truck': '🚛',
+                'Bus': '🚌',
+                'Van': '🚐',
+                'Pickup': '🛻',
+                'Box Truck': '📦',
+                'Trailer': '🚚',
+                'Motorcycle': '🏍️'
+            };
+            return icons[type] || '🚗';
+        }
+
+        function renderFleetTable() {
+            const tbody = document.getElementById('fleetTableBody');
+            
+            if (fleets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                            Belum ada armada. Klik "Tambah Armada" untuk memulai.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = fleets.map(fleet => `
+                <tr class="fleet-row">
+                    <td>
+                        <div class="fleet-info">
+                            <div class="vehicle-thumbnail">${fleet.thumbnail}</div>
+                            <div class="fleet-details">
+                                <h4>${fleet.name}</h4>
+                                <p>${fleet.brand} ${fleet.model}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td><strong>${fleet.licensePlate}</strong></td>
+                    <td>${fleet.type}</td>
+                    <td>${fleet.capacity}</td>
+                    <td>${fleet.year}</td>
+                    <td>${fleet.driver}</td>
+                    <td><span class="status-badge status-${fleet.status}">${getStatusLabel(fleet.status)}</span></td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn" onclick="editFleet(${fleet.id})">Edit</button>
+                            <button class="action-btn" onclick="deleteFleet(${fleet.id})">Hapus</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'active': 'Aktif',
+                'idle': 'Menganggur',
+                'maintenance': 'Maintenance'
+            };
+            return labels[status] || status;
+        }
+
+        // Form validation and submission
+        document.getElementById('addFleetForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!validateForm()) return;
+            
+            const formData = {
+                registration_number: document.getElementById('licensePlate').value,
+                vehicle_type: document.getElementById('vehicleType').value,
+                brand: document.getElementById('brand').value || 'Unknown',
+                model: document.getElementById('model').value || 'Unknown',
+                year: parseInt(document.getElementById('year').value) || new Date().getFullYear(),
+                operational_status: document.getElementById('status').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    alert('Armada berhasil ditambahkan!');
+                    document.getElementById('addFleetForm').reset();
+                    showFleetList();
+                } else {
+                    alert('Gagal menambahkan armada. Silakan coba lagi.');
+                }
+            } catch (error) {
+                console.error('Error adding fleet:', error);
+                alert('Koneksi error. Silakan coba lagi.');
+            }
+        });
+
+        function validateForm() {
+            let isValid = true;
+            
+            // Clear previous errors
+            document.querySelectorAll('.validation-message').forEach(msg => msg.textContent = '');
+            document.querySelectorAll('.form-input, .form-select').forEach(input => input.classList.remove('error'));
+            
+            // Validate required fields
+            const fleetName = document.getElementById('fleetName');
+            const licensePlate = document.getElementById('licensePlate');
+            const vehicleType = document.getElementById('vehicleType');
+            
+            if (!fleetName.value.trim()) {
+                showValidationError('fleetNameError', 'Nama armada wajib diisi');
+                fleetName.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!licensePlate.value.trim()) {
+                showValidationError('licensePlateError', 'Plat nomor wajib diisi');
+                licensePlate.classList.add('error');
+                isValid = false;
+            }
+            
+            if (!vehicleType.value) {
+                showValidationError('vehicleTypeError', 'Jenis kendaraan wajib dipilih');
+                vehicleType.classList.add('error');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+
+        function showValidationError(elementId, message) {
+            document.getElementById(elementId).textContent = message;
+        }
+
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+            setTimeout(() => errorElement.classList.add('hidden'), 5000);
+        }
+
+        // Fleet actions
+        function editFleet(fleetId) {
+            alert('Fitur edit akan segera tersedia.');
+        }
+
+        async function deleteFleet(fleetId) {
+            if (!confirm('Apakah Anda yakin ingin menghapus armada ini?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/vehicles/${fleetId}`, {
+                    method: 'DELETE',
+                    headers: { 'Origin': 'http://localhost:3006' },
+                    mode: 'cors'
+                });
+
+                if (response.ok) {
+                    alert('Armada berhasil dihapus!');
+                    loadFleets();
+                } else {
+                    alert('Gagal menghapus armada. Silakan coba lagi.');
+                }
+            } catch (error) {
+                console.error('Error deleting fleet:', error);
+                alert('Koneksi error. Silakan coba lagi.');
+            }
+        }
+    </script>
+</body>
+</html>

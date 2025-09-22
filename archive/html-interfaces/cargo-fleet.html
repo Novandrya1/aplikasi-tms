@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cargo.in - Fleet Management</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #f8fafc; color: #334155; }
+        
+        /* Header */
+        .header { background: white; padding: 16px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: fixed; top: 0; left: 0; right: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-text { font-size: 24px; font-weight: 700; color: #2563eb; }
+        .module-label { background: #eff6ff; color: #2563eb; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .user-profile { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: #f1f5f9; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+        .notifications { position: relative; padding: 8px; border-radius: 8px; background: #f1f5f9; cursor: pointer; }
+        .settings { padding: 8px; border-radius: 8px; background: #f1f5f9; cursor: pointer; }
+        
+        /* Main Content */
+        .main-content { margin-top: 80px; padding: 24px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .page-title { font-size: 28px; font-weight: 700; color: #0f172a; }
+        .add-fleet-btn { background: #2563eb; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .add-fleet-btn:hover { background: #1d4ed8; }
+        
+        /* Progress Bar */
+        .progress-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .progress-header { display: flex; justify-content: between; align-items: center; margin-bottom: 12px; }
+        .progress-title { font-weight: 600; color: #0f172a; }
+        .progress-percentage { color: #2563eb; font-weight: 600; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #2563eb, #3b82f6); width: 60%; transition: width 0.3s; }
+        
+        /* Filters */
+        .filters { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
+        .filters-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 300px; position: relative; }
+        .search-input { width: 100%; padding: 12px 16px 12px 40px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+        .search-input:focus { outline: none; border-color: #2563eb; }
+        .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; }
+        .filter-select { padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; }
+        
+        /* Fleet Table */
+        .fleet-container { display: flex; gap: 24px; }
+        .fleet-table-container { flex: 1; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .fleet-table { width: 100%; }
+        .fleet-table th { background: #f8fafc; padding: 16px; text-align: left; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0; }
+        .fleet-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; }
+        .fleet-row { cursor: pointer; transition: background 0.2s; }
+        .fleet-row:hover { background: #f8fafc; }
+        .fleet-row.selected { background: #eff6ff; }
+        
+        /* Fleet Row Content */
+        .fleet-info { display: flex; align-items: center; gap: 12px; }
+        .vehicle-thumbnail { width: 48px; height: 48px; border-radius: 8px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .fleet-details h4 { font-weight: 600; color: #0f172a; margin-bottom: 4px; }
+        .fleet-details p { color: #64748b; font-size: 14px; }
+        
+        /* Status Badges */
+        .status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-active { background: #dcfce7; color: #166534; }
+        .status-trip { background: #fef3c7; color: #92400e; }
+        .status-idle { background: #f1f5f9; color: #475569; }
+        .status-maintenance { background: #fecaca; color: #991b1b; }
+        
+        /* Actions */
+        .actions { display: flex; gap: 8px; }
+        .action-btn { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; }
+        .action-btn:hover { background: #f8fafc; }
+        .action-edit { color: #2563eb; }
+        .action-delete { color: #dc2626; }
+        
+        /* Sidebar */
+        .sidebar { width: 400px; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 24px; display: none; }
+        .sidebar.active { display: block; }
+        .sidebar h3 { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 20px; }
+        .detail-section { margin-bottom: 24px; }
+        .detail-section h4 { font-weight: 600; color: #374151; margin-bottom: 12px; }
+        .detail-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .detail-label { color: #64748b; }
+        .detail-value { font-weight: 500; }
+        
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 32px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .modal-title { font-size: 24px; font-weight: 700; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; }
+        
+        /* Form */
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-label { display: block; margin-bottom: 6px; font-weight: 500; color: #374151; }
+        .form-input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+        .form-input:focus { outline: none; border-color: #2563eb; }
+        .form-select { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .fleet-container { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .form-grid { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content { padding: 16px; }
+            .page-header { flex-direction: column; gap: 16px; align-items: stretch; }
+            .filters-row { flex-direction: column; }
+            .search-box { min-width: auto; }
+            .fleet-table { font-size: 14px; }
+            .fleet-table th, .fleet-table td { padding: 12px 8px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">
+            <div class="logo-text">Cargo.in</div>
+            <div class="module-label">TMS</div>
+        </div>
+        <div class="header-right">
+            <div class="user-profile">
+                <div class="user-avatar">FO</div>
+                <span>Fleet Owner</span>
+            </div>
+            <div class="notifications">🔔</div>
+            <div class="settings">⚙️</div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Fleet List</h1>
+            <button class="add-fleet-btn" onclick="openAddFleetModal()">
+                <span>+</span>
+                Add Fleet
+            </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-header">
+                <div class="progress-title">Complete your Fleet Profile</div>
+                <div class="progress-percentage">60%</div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filters-row">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" placeholder="Search by license plate..." id="searchInput" onkeyup="filterFleets()">
+                </div>
+                <select class="filter-select" id="typeFilter" onchange="filterFleets()">
+                    <option value="">All Vehicle Types</option>
+                    <option value="Pickup">Pickup</option>
+                    <option value="Box Truck">Box Truck</option>
+                    <option value="Trailer">Trailer</option>
+                    <option value="Van">Van</option>
+                </select>
+                <select class="filter-select" id="statusFilter" onchange="filterFleets()">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="on_trip">On Trip</option>
+                    <option value="idle">Idle</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Fleet Container -->
+        <div class="fleet-container">
+            <!-- Fleet Table -->
+            <div class="fleet-table-container">
+                <table class="fleet-table">
+                    <thead>
+                        <tr>
+                            <th>Fleet Info</th>
+                            <th>License Plate</th>
+                            <th>Type</th>
+                            <th>Capacity</th>
+                            <th>Year</th>
+                            <th>Driver</th>
+                            <th>Status</th>
+                            <th>Documents</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fleetTableBody">
+                        <!-- Fleet rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Sidebar -->
+            <div id="fleetSidebar" class="sidebar">
+                <h3>Fleet Details</h3>
+                <div id="sidebarContent">
+                    <!-- Sidebar content will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Fleet Modal -->
+    <div id="addFleetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Add New Fleet</h2>
+                <button class="close-btn" onclick="closeAddFleetModal()">&times;</button>
+            </div>
+            <form id="addFleetForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Fleet Name / Nickname</label>
+                        <input type="text" class="form-input" id="fleetName" placeholder="e.g., Thunder Truck">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">License Plate</label>
+                        <input type="text" class="form-input" id="licensePlate" placeholder="e.g., B1234ABC">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Vehicle Type</label>
+                        <select class="form-select" id="vehicleType">
+                            <option value="">Select Type</option>
+                            <option value="Pickup">Pickup</option>
+                            <option value="Box Truck">Box Truck</option>
+                            <option value="Trailer">Trailer</option>
+                            <option value="Van">Van</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Capacity</label>
+                        <input type="text" class="form-input" id="capacity" placeholder="e.g., 5000 Kg or 20 m³">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Brand</label>
+                        <input type="text" class="form-input" id="brand" placeholder="e.g., Toyota">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <input type="text" class="form-input" id="model" placeholder="e.g., Hiace">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Manufacturing Year</label>
+                        <input type="number" class="form-input" id="year" placeholder="e.g., 2023">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="status">
+                            <option value="active">Active</option>
+                            <option value="idle">Idle</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="action-btn" onclick="closeAddFleetModal()">Cancel</button>
+                    <button type="submit" class="add-fleet-btn">Add Fleet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/v1';
+        let fleets = [];
+        let filteredFleets = [];
+
+        // Initialize
+        window.onload = () => {
+            loadFleets();
+        };
+
+        // Load fleets from backend
+        async function loadFleets() {
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    mode: 'cors',
+                    headers: { 'Origin': 'http://localhost:3006' }
+                });
+                const data = await response.json();
+                
+                if (data.vehicles) {
+                    fleets = data.vehicles.map(v => ({
+                        id: v.id,
+                        name: v.registration_number, // Using license plate as name for now
+                        licensePlate: v.registration_number,
+                        type: v.vehicle_type,
+                        capacity: '5000 Kg', // Default capacity
+                        brand: v.brand,
+                        model: v.model,
+                        year: v.year,
+                        driver: 'Unassigned',
+                        status: v.operational_status === 'active' ? 'active' : 'idle',
+                        documents: 'Complete',
+                        thumbnail: getVehicleIcon(v.vehicle_type)
+                    }));
+                } else {
+                    fleets = [];
+                }
+                
+                filteredFleets = [...fleets];
+                renderFleetTable();
+            } catch (error) {
+                console.error('Error loading fleets:', error);
+                fleets = [];
+                filteredFleets = [];
+                renderFleetTable();
+            }
+        }
+
+        // Get vehicle icon based on type
+        function getVehicleIcon(type) {
+            const icons = {
+                'Truck': '🚛',
+                'Bus': '🚌',
+                'Van': '🚐',
+                'Pickup': '🛻',
+                'Box Truck': '📦',
+                'Trailer': '🚚'
+            };
+            return icons[type] || '🚗';
+        }
+
+        // Render fleet table
+        function renderFleetTable() {
+            const tbody = document.getElementById('fleetTableBody');
+            
+            if (filteredFleets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" style="text-align: center; padding: 40px; color: #64748b;">
+                            No fleets found. Click "Add Fleet" to get started.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filteredFleets.map(fleet => `
+                <tr class="fleet-row" onclick="selectFleet(${fleet.id})">
+                    <td>
+                        <div class="fleet-info">
+                            <div class="vehicle-thumbnail">${fleet.thumbnail}</div>
+                            <div class="fleet-details">
+                                <h4>${fleet.name}</h4>
+                                <p>${fleet.brand} ${fleet.model}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td><strong>${fleet.licensePlate}</strong></td>
+                    <td>${fleet.type}</td>
+                    <td>${fleet.capacity}</td>
+                    <td>${fleet.year}</td>
+                    <td>${fleet.driver}</td>
+                    <td><span class="status-badge status-${fleet.status}">${getStatusLabel(fleet.status)}</span></td>
+                    <td>${fleet.documents}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn action-edit" onclick="editFleet(${fleet.id}); event.stopPropagation();">Edit</button>
+                            <button class="action-btn action-delete" onclick="deleteFleet(${fleet.id}); event.stopPropagation();">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Get status label
+        function getStatusLabel(status) {
+            const labels = {
+                'active': 'Active',
+                'on_trip': 'On Trip',
+                'idle': 'Idle',
+                'maintenance': 'Maintenance'
+            };
+            return labels[status] || status;
+        }
+
+        // Filter fleets
+        function filterFleets() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredFleets = fleets.filter(fleet => {
+                const matchesSearch = fleet.licensePlate.toLowerCase().includes(searchTerm) ||
+                                    fleet.name.toLowerCase().includes(searchTerm);
+                const matchesType = !typeFilter || fleet.type === typeFilter;
+                const matchesStatus = !statusFilter || fleet.status === statusFilter;
+
+                return matchesSearch && matchesType && matchesStatus;
+            });
+
+            renderFleetTable();
+        }
+
+        // Select fleet (show in sidebar)
+        function selectFleet(fleetId) {
+            const fleet = fleets.find(f => f.id === fleetId);
+            if (!fleet) return;
+
+            // Remove previous selection
+            document.querySelectorAll('.fleet-row').forEach(row => row.classList.remove('selected'));
+            // Add selection to clicked row
+            event.currentTarget.classList.add('selected');
+
+            // Show sidebar
+            const sidebar = document.getElementById('fleetSidebar');
+            const sidebarContent = document.getElementById('sidebarContent');
+            
+            sidebarContent.innerHTML = `
+                <div class="detail-section">
+                    <h4>Vehicle Information</h4>
+                    <div class="detail-item">
+                        <span class="detail-label">Fleet Name</span>
+                        <span class="detail-value">${fleet.name}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">License Plate</span>
+                        <span class="detail-value">${fleet.licensePlate}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Type</span>
+                        <span class="detail-value">${fleet.type}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Brand & Model</span>
+                        <span class="detail-value">${fleet.brand} ${fleet.model}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Year</span>
+                        <span class="detail-value">${fleet.year}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Capacity</span>
+                        <span class="detail-value">${fleet.capacity}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Status & Assignment</h4>
+                    <div class="detail-item">
+                        <span class="detail-label">Current Status</span>
+                        <span class="detail-value">
+                            <span class="status-badge status-${fleet.status}">${getStatusLabel(fleet.status)}</span>
+                        </span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Assigned Driver</span>
+                        <span class="detail-value">${fleet.driver}</span>
+                    </div>
+                </div>
+                
+                <div class="detail-section">
+                    <h4>Documents</h4>
+                    <div class="detail-item">
+                        <span class="detail-label">STNK</span>
+                        <span class="detail-value">✅ Valid</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Insurance</span>
+                        <span class="detail-value">✅ Valid</span>
+                    </div>
+                </div>
+            `;
+            
+            sidebar.classList.add('active');
+        }
+
+        // Modal functions
+        function openAddFleetModal() {
+            document.getElementById('addFleetModal').classList.add('active');
+        }
+
+        function closeAddFleetModal() {
+            document.getElementById('addFleetModal').classList.remove('active');
+            document.getElementById('addFleetForm').reset();
+        }
+
+        // Add fleet form submission
+        document.getElementById('addFleetForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                registration_number: document.getElementById('licensePlate').value,
+                vehicle_type: document.getElementById('vehicleType').value,
+                brand: document.getElementById('brand').value,
+                model: document.getElementById('model').value,
+                year: parseInt(document.getElementById('year').value),
+                operational_status: document.getElementById('status').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/vehicles`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://localhost:3006'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    closeAddFleetModal();
+                    loadFleets(); // Reload the fleet list
+                    alert('Fleet added successfully!');
+                } else {
+                    alert('Failed to add fleet. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error adding fleet:', error);
+                alert('Connection error. Please try again.');
+            }
+        });
+
+        // Edit fleet
+        function editFleet(fleetId) {
+            alert('Edit functionality will be implemented soon.');
+        }
+
+        // Delete fleet
+        async function deleteFleet(fleetId) {
+            if (!confirm('Are you sure you want to delete this fleet?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/vehicles/${fleetId}`, {
+                    method: 'DELETE',
+                    headers: { 'Origin': 'http://localhost:3006' },
+                    mode: 'cors'
+                });
+
+                if (response.ok) {
+                    loadFleets(); // Reload the fleet list
+                    document.getElementById('fleetSidebar').classList.remove('active');
+                    alert('Fleet deleted successfully!');
+                } else {
+                    alert('Failed to delete fleet. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error deleting fleet:', error);
+                alert('Connection error. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
