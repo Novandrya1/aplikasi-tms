@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../services/admin_service.dart';
+import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class VehicleVerificationDetailScreen extends StatefulWidget {
   final int vehicleId;
@@ -343,12 +347,20 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Container(
-                child: Icon(
-                  Icons.image,
-                  color: Colors.grey[600],
-                  size: 30,
-                ),
+              child: FutureBuilder<Widget>(
+                future: _loadImageThumbnail(doc),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return snapshot.data!;
+                  }
+                  return Container(
+                    child: Icon(
+                      Icons.image,
+                      color: Colors.grey[600],
+                      size: 30,
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -566,8 +578,8 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                     children: [
                       // Tampilkan preview gambar
                       Container(
-                        width: 200,
-                        height: 200,
+                        width: 300,
+                        height: 300,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(8),
@@ -575,20 +587,21 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.image, size: 64, color: Colors.blue[400]),
-                              SizedBox(height: 8),
-                              Text(
-                                _getDocumentTypeDisplay(doc['attachment_type']),
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.blue[600],
-                                ),
-                              ),
-                            ],
+                          child: FutureBuilder<Widget>(
+                            future: _loadImagePreview(doc),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return snapshot.data!;
+                              }
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('Loading image...'),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -848,6 +861,86 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       case 'foto_samping': return 'Foto Samping';
       default: return type.toUpperCase();
     }
+  }
+
+  Future<Widget> _loadImageThumbnail(Map<String, dynamic> doc) async {
+    try {
+      final fileName = doc['file_name'];
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/files/$fileName'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['type'] == 'base64' && data['data'] != null) {
+          return Image.memory(
+            base64Decode(data['data'].split(',')[1]),
+            fit: BoxFit.cover,
+            width: 60,
+            height: 60,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading thumbnail: $e');
+    }
+    
+    return Container(
+      child: Icon(
+        Icons.image,
+        color: Colors.grey[600],
+        size: 30,
+      ),
+    );
+  }
+
+  Future<Widget> _loadImagePreview(Map<String, dynamic> doc) async {
+    try {
+      final fileName = doc['file_name'];
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/files/$fileName'),
+        headers: await _getHeaders(),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['type'] == 'base64' && data['data'] != null) {
+          return Image.memory(
+            base64Decode(data['data'].split(',')[1]),
+            fit: BoxFit.contain,
+            width: 300,
+            height: 300,
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading preview: $e');
+    }
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.image, size: 64, color: Colors.blue[400]),
+        SizedBox(height: 8),
+        Text(
+          _getDocumentTypeDisplay(doc['attachment_type']),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Colors.blue[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await AuthService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   @override

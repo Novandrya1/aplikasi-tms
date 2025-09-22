@@ -563,18 +563,11 @@ func uploadVehicleAttachmentHandler(c *gin.Context) {
 			// Create uploads directory if not exists
 			os.MkdirAll("./uploads", 0755)
 			
-			// Decode base64 data and save to file
-			if strings.HasPrefix(req.Data, "data:image/") {
-				// Extract base64 part after comma
-				parts := strings.Split(req.Data, ",")
-				if len(parts) > 1 {
-					// For now, just create a placeholder file
-					file, err := os.Create(filePath)
-					if err == nil {
-						file.WriteString("Image data: " + req.AttachmentType)
-						file.Close()
-					}
-				}
+			// Save base64 data directly to file for serving
+			file, err := os.Create(filePath)
+			if err == nil {
+				file.WriteString(req.Data) // Save full base64 data
+				file.Close()
 			}
 		}
 
@@ -782,6 +775,25 @@ func serveFileHandler(c *gin.Context) {
 		return
 	}
 
+	// Read file content
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
+		return
+	}
+
+	// Check if it's base64 data
+	contentStr := string(content)
+	if strings.HasPrefix(contentStr, "data:image/") {
+		// Return base64 data as JSON for frontend to display
+		c.JSON(http.StatusOK, gin.H{
+			"type": "base64",
+			"data": contentStr,
+		})
+		return
+	}
+
+	// Serve regular file
 	c.File(filePath)
 }
 
