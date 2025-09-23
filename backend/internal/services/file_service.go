@@ -129,28 +129,7 @@ func UploadVehicleAttachment(db *sql.DB, vehicleID int, attachmentType string, f
 	return &attachment, nil
 }
 
-func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]models.VehicleAttachment, error) {
-	query := `SELECT id, vehicle_id, attachment_type, file_name, file_path, file_size, mime_type, uploaded_at
-			  FROM vehicle_attachments WHERE vehicle_id = $1 ORDER BY uploaded_at DESC`
 
-	rows, err := db.Query(query, vehicleID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get attachments: %v", err)
-	}
-	defer rows.Close()
-
-	var attachments []models.VehicleAttachment
-	for rows.Next() {
-		var a models.VehicleAttachment
-		err := rows.Scan(&a.ID, &a.VehicleID, &a.AttachmentType, &a.FileName, &a.FilePath, &a.FileSize, &a.MimeType, &a.UploadedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan attachment: %v", err)
-		}
-		attachments = append(attachments, a)
-	}
-
-	return attachments, nil
-}
 
 func DeleteVehicleAttachment(db *sql.DB, attachmentID int, vehicleID int) error {
 	// Get file path first

@@ -13,14 +13,15 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
 			  v.verification_status, v.verification_substatus, v.created_at,
 			  COALESCE(fo.company_name, '') as company_name, 
-			  COALESCE(u.full_name, '') as full_name, 
-			  COALESCE(u.email, '') as email,
-			  CASE WHEN fo.company_name IS NOT NULL THEN 'company' ELSE 'individual' END as owner_type,
+			  COALESCE(fo.owner_name, u.full_name, '') as full_name, 
+			  COALESCE(fo.email, u.email, '') as email,
+			  CASE WHEN fo.company_name IS NOT NULL AND fo.company_name != '' THEN 'company' ELSE 'individual' END as owner_type,
 			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
 			  LEFT JOIN users u ON fo.user_id = u.id
-			  WHERE v.verification_status IN ('pending', 'submitted')
+			  WHERE (v.verification_status IN ('pending', 'submitted') OR v.verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review'))
+			  AND v.fleet_owner_id IS NOT NULL
 			  ORDER BY v.created_at ASC`
 
 	rows, err := db.Query(query)
@@ -250,9 +251,9 @@ func GetAdminDashboardStats(db *sql.DB) (map[string]interface{}, error) {
 	}
 	stats["total_vehicles"] = totalVehicles
 
-	// Pending vehicles
+	// Pending vehicles (including submitted)
 	var pendingVehicles int
-	err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'pending'").Scan(&pendingVehicles)
+	err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status IN ('pending', 'submitted') OR verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review')").Scan(&pendingVehicles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending vehicles: %v", err)
 	}
@@ -296,12 +297,21 @@ func GetAdminDashboardStats(db *sql.DB) (map[string]interface{}, error) {
 func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{}, error) {
 	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
 			  v.chassis_number, v.engine_number, v.color, v.capacity_weight, v.capacity_volume,
-			  v.ownership_status, v.operational_status, v.verification_status,
+			  v.ownership_status, v.operational_status, v.verification_status, v.verification_substatus,
 			  v.insurance_company, v.insurance_policy_number, v.insurance_expiry_date,
 			  v.last_maintenance_date, v.next_maintenance_date, v.maintenance_notes,
 			  v.created_at, v.updated_at,
-			  fo.company_name, fo.business_license, fo.address, fo.phone,
-			  u.full_name, u.email, u.username
+			  COALESCE(fo.company_name, '') as company_name, 
+			  COALESCE(fo.business_license, '') as business_license, 
+			  COALESCE(fo.address, '') as address, 
+			  COALESCE(fo.phone, '') as phone,
+			  COALESCE(fo.email, '') as owner_email_fo,
+			  COALESCE(fo.owner_name, '') as owner_name_fo,
+			  COALESCE(fo.ktp_number, '') as ktp_number,
+			  COALESCE(fo.npwp, '') as npwp,
+			  COALESCE(u.full_name, '') as full_name, 
+			  COALESCE(u.email, '') as email, 
+			  COALESCE(u.username, '') as username
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
 			  LEFT JOIN users u ON fo.user_id = u.id
@@ -314,21 +324,23 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	var id, year int
 	var regNumber, vehicleType, brand, model, chassisNumber, engineNumber, color string
 	var capacityWeight, capacityVolume sql.NullFloat64
-	var ownershipStatus, operationalStatus, verificationStatus string
+	var ownershipStatus, operationalStatus, verificationStatus, verificationSubstatus string
 	var insuranceCompany, insurancePolicyNumber sql.NullString
 	var insuranceExpiryDate, lastMaintenanceDate, nextMaintenanceDate sql.NullTime
 	var maintenanceNotes sql.NullString
 	var createdAt, updatedAt string
-	var companyName, businessLicense, address, phone, fullName, email, username string
+	var companyName, businessLicense, address, phone, ownerEmailFo, ownerNameFo, ktpNumber, npwp string
+	var fullName, email, username string
 
 	err := row.Scan(
 		&id, &regNumber, &vehicleType, &brand, &model, &year,
 		&chassisNumber, &engineNumber, &color, &capacityWeight, &capacityVolume,
-		&ownershipStatus, &operationalStatus, &verificationStatus,
+		&ownershipStatus, &operationalStatus, &verificationStatus, &verificationSubstatus,
 		&insuranceCompany, &insurancePolicyNumber, &insuranceExpiryDate,
 		&lastMaintenanceDate, &nextMaintenanceDate, &maintenanceNotes,
 		&createdAt, &updatedAt,
 		&companyName, &businessLicense, &address, &phone,
+		&ownerEmailFo, &ownerNameFo, &ktpNumber, &npwp,
 		&fullName, &email, &username,
 	)
 
@@ -360,6 +372,7 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	vehicle["ownership_status"] = ownershipStatus
 	vehicle["operational_status"] = operationalStatus
 	vehicle["verification_status"] = verificationStatus
+	vehicle["verification_substatus"] = verificationSubstatus
 	
 	if insuranceCompany.Valid {
 		vehicle["insurance_company"] = insuranceCompany.String
@@ -374,14 +387,35 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	vehicle["created_at"] = createdAt
 	vehicle["updated_at"] = updatedAt
 	
-	// Fleet owner info
+	// Fleet owner info - prioritize fleet_owners table data
 	vehicle["company_name"] = companyName
 	vehicle["business_license"] = businessLicense
 	vehicle["owner_address"] = address
 	vehicle["owner_phone"] = phone
-	vehicle["owner_name"] = fullName
-	vehicle["owner_email"] = email
+	vehicle["ktp_number"] = ktpNumber
+	vehicle["npwp"] = npwp
+	
+	// Use fleet owner data if available, otherwise use user data
+	if ownerNameFo != "" {
+		vehicle["owner_name"] = ownerNameFo
+	} else {
+		vehicle["owner_name"] = fullName
+	}
+	
+	if ownerEmailFo != "" {
+		vehicle["owner_email"] = ownerEmailFo
+	} else {
+		vehicle["owner_email"] = email
+	}
+	
 	vehicle["owner_username"] = username
+	
+	// Determine owner type
+	if companyName != "" {
+		vehicle["owner_type"] = "company"
+	} else {
+		vehicle["owner_type"] = "individual"
+	}
 
 	return vehicle, nil
 }
@@ -888,4 +922,42 @@ func ScheduleInspection(db *sql.DB, vehicleID int, inspectionDate time.Time, loc
 	}
 
 	return tx.Commit()
+}
+
+func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{}, error) {
+	query := `SELECT id, vehicle_id, attachment_type, file_name, file_path, file_size, mime_type, uploaded_at
+			  FROM vehicle_attachments 
+			  WHERE vehicle_id = $1 
+			  ORDER BY uploaded_at DESC`
+
+	rows, err := db.Query(query, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vehicle attachments: %v", err)
+	}
+	defer rows.Close()
+
+	var attachments []map[string]interface{}
+	for rows.Next() {
+		var attachment map[string]interface{} = make(map[string]interface{})
+		var id, vehicleIDScanned, fileSize int
+		var attachmentType, fileName, filePath, mimeType, uploadedAt string
+
+		err := rows.Scan(&id, &vehicleIDScanned, &attachmentType, &fileName, &filePath, &fileSize, &mimeType, &uploadedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan attachment: %v", err)
+		}
+
+		attachment["id"] = id
+		attachment["vehicle_id"] = vehicleIDScanned
+		attachment["attachment_type"] = attachmentType
+		attachment["file_name"] = fileName
+		attachment["file_path"] = filePath
+		attachment["file_size"] = fileSize
+		attachment["mime_type"] = mimeType
+		attachment["uploaded_at"] = uploadedAt
+
+		attachments = append(attachments, attachment)
+	}
+
+	return attachments, nil
 }
