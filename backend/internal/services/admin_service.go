@@ -604,7 +604,7 @@ func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
 	// Get counts by status
 	
 	statusQuery := `SELECT 
-		COUNT(CASE WHEN verification_status = 'pending' OR verification_status = 'submitted' THEN 1 END) as pending_count,
+		COUNT(CASE WHEN (verification_status IN ('pending', 'submitted') OR verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review')) AND fleet_owner_id IS NOT NULL THEN 1 END) as pending_count,
 		COUNT(CASE WHEN verification_substatus = 'needs_correction' THEN 1 END) as needs_correction_count,
 		COUNT(CASE WHEN verification_substatus = 'under_review' THEN 1 END) as under_review_count,
 		COUNT(CASE WHEN verification_status = 'approved' AND DATE(verified_at) = CURRENT_DATE THEN 1 END) as approved_today,
