@@ -215,11 +215,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Email: superadmin@tms.com',
+                                'Email: admin@tms.com',
                                 style: TextStyle(fontSize: 12, color: Color(0xFF1565C0), fontWeight: FontWeight.w500),
                               ),
                               Text(
-                                'Password: 12345678',
+                                'Password: admin123',
                                 style: TextStyle(fontSize: 12, color: Color(0xFF1565C0), fontWeight: FontWeight.w500),
                               ),
                             ],
