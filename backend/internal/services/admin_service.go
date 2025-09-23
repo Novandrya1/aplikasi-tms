@@ -925,7 +925,8 @@ func ScheduleInspection(db *sql.DB, vehicleID int, inspectionDate time.Time, loc
 }
 
 func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{}, error) {
-	query := `SELECT id, vehicle_id, attachment_type, file_name, file_path, file_size, mime_type, uploaded_at
+	query := `SELECT id, vehicle_id, attachment_type, file_name, file_path, 
+			  file_size, mime_type, uploaded_at
 			  FROM vehicle_attachments 
 			  WHERE vehicle_id = $1 
 			  ORDER BY uploaded_at DESC`
@@ -939,8 +940,10 @@ func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{},
 	var attachments []map[string]interface{}
 	for rows.Next() {
 		var attachment map[string]interface{} = make(map[string]interface{})
-		var id, vehicleIDScanned, fileSize int
-		var attachmentType, fileName, filePath, mimeType, uploadedAt string
+		var id, vehicleIDScanned int
+		var fileSize sql.NullInt64
+		var attachmentType, fileName, filePath, uploadedAt string
+		var mimeType sql.NullString
 
 		err := rows.Scan(&id, &vehicleIDScanned, &attachmentType, &fileName, &filePath, &fileSize, &mimeType, &uploadedAt)
 		if err != nil {
@@ -952,8 +955,16 @@ func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{},
 		attachment["attachment_type"] = attachmentType
 		attachment["file_name"] = fileName
 		attachment["file_path"] = filePath
-		attachment["file_size"] = fileSize
-		attachment["mime_type"] = mimeType
+		if fileSize.Valid {
+			attachment["file_size"] = fileSize.Int64
+		} else {
+			attachment["file_size"] = 0
+		}
+		if mimeType.Valid {
+			attachment["mime_type"] = mimeType.String
+		} else {
+			attachment["mime_type"] = ""
+		}
 		attachment["uploaded_at"] = uploadedAt
 
 		attachments = append(attachments, attachment)
