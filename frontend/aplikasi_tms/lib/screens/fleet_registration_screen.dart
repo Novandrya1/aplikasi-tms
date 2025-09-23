@@ -1368,6 +1368,11 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
         throw Exception('Data kendaraan belum lengkap');
       }
 
+      // Validate required documents
+      if (!_canProceedToVerification()) {
+        throw Exception('Dokumen belum lengkap. Pastikan semua dokumen wajib sudah diupload.');
+      }
+
       // Validate required fields based on type
       if (_selectedType == 'company') {
         if (_companyNameController.text.isEmpty || _businessLicenseController.text.isEmpty) {
@@ -1394,7 +1399,7 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       final fleetResult = await FleetService.registerFleetOwner(fleetRequest);
       print('Fleet registration successful: $fleetResult');
 
-      // Register vehicle for verification
+      // Register vehicle with complete data and documents
       final vehicleRequest = {
         'registration_number': _plateController.text.trim(),
         'vehicle_type': _vehicleTypeController.text.trim(),
@@ -1408,20 +1413,99 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
         'capacity_volume': 10.0,
         'ownership_status': 'owned',
         'operational_status': 'pending_verification',
+        'verification_status': 'submitted',
+        'verification_substatus': 'awaiting_review',
+        // Include all uploaded documents
+        'documents': {
+          'owner_type': _selectedType,
+          'ktp_file': _ktpFile,
+          'selfie_file': _selfieFile,
+          'stnk_file': _stnkFile,
+          'bpkb_file': _bpkbFile,
+          'tax_file': _taxFile,
+          'insurance_file': _insuranceFile,
+          'business_license_file': _businessLicenseFile,
+          'npwp_file': _npwpFile,
+          'vehicle_photos': _vehiclePhotos,
+        },
+        // Include owner data for verification
+        'owner_data': {
+          'name': _nameController.text.trim(),
+          'ktp_number': _ktpController.text.trim(),
+          'address': _addressController.text.trim(),
+          'phone': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
+          'company_name': _selectedType == 'company' ? _companyNameController.text.trim() : null,
+          'npwp': _selectedType == 'company' ? _npwpController.text.trim() : null,
+          'business_license': _selectedType == 'company' ? _businessLicenseController.text.trim() : null,
+        },
       };
 
-      print('Sending vehicle registration: $vehicleRequest');
-      await FleetService.registerVehicle(vehicleRequest);
-      print('Vehicle registration successful');
+      print('Sending complete vehicle registration with documents: ${vehicleRequest.keys}');
+      final vehicleResult = await FleetService.registerVehicle(vehicleRequest);
+      print('Vehicle registration successful: $vehicleResult');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Registrasi berhasil dikirim! Menunggu verifikasi admin.'),
-          backgroundColor: Colors.green,
+      // Show success message with next steps
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 28),
+              SizedBox(width: 8),
+              Text('Registrasi Berhasil!'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Registrasi armada Anda telah berhasil dikirim dengan data lengkap:'),
+              SizedBox(height: 12),
+              Text('✅ Data pemilik/perusahaan'),
+              Text('✅ Data kendaraan lengkap'),
+              Text('✅ Semua dokumen pendukung'),
+              Text('✅ Foto kendaraan (${_vehiclePhotos.length} foto)'),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Proses Selanjutnya:',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                    ),
+                    SizedBox(height: 4),
+                    Text('• Admin akan memeriksa semua dokumen', style: TextStyle(fontSize: 12)),
+                    Text('• Verifikasi data dan keaslian dokumen', style: TextStyle(fontSize: 12)),
+                    Text('• Notifikasi hasil dalam 1-3 hari kerja', style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Close registration screen
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Selesai'),
+            ),
+          ],
         ),
       );
-
-      Navigator.of(context).pop();
     } catch (e) {
       print('Registration error: $e');
       String errorMessage = e.toString();

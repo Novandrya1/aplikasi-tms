@@ -88,6 +88,8 @@ type VehicleRequest struct {
 	MaintenanceNotes     *string `json:"maintenance_notes"`
 }
 
+
+
 type VehicleAttachment struct {
 	ID               int       `json:"id" db:"id"`
 	VehicleID        int       `json:"vehicle_id" db:"vehicle_id"`
@@ -136,6 +138,8 @@ type FleetOwnerInfo struct {
 	Phone           string `json:"phone"`
 	Email           string `json:"email"`
 	OwnerName       string `json:"owner_name"`
+	KTPNumber       string `json:"ktp_number"`
+	NPWP            string `json:"npwp"`
 	OwnerType       string `json:"owner_type"` // "individual" or "company"
 	Verified        bool   `json:"verified"`
 }

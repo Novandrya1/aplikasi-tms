@@ -9,6 +9,10 @@ type FleetOwner struct {
 	BusinessLicense string   `json:"business_license"`
 	Address        string    `json:"address"`
 	Phone          string    `json:"phone"`
+	Email          string    `json:"email"`
+	OwnerName      string    `json:"owner_name"`
+	KTPNumber      string    `json:"ktp_number"`
+	NPWP           string    `json:"npwp"`
 	Verified       bool      `json:"verified"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -41,8 +45,10 @@ type VehicleRegistrationRequest struct {
 	CapacityVolume     *float64 `json:"capacity_volume"`
 	
 	// Ownership & Status
-	OwnershipStatus    string `json:"ownership_status" binding:"required"`
-	OperationalStatus  string `json:"operational_status"`
+	OwnershipStatus       string `json:"ownership_status" binding:"required"`
+	OperationalStatus     string `json:"operational_status"`
+	VerificationStatus    string `json:"verification_status"`
+	VerificationSubstatus string `json:"verification_substatus"`
 	
 	// Insurance Info
 	InsuranceCompany       string `json:"insurance_company"`
@@ -54,6 +60,8 @@ type VehicleRegistrationRequest struct {
 	NextMaintenanceDate    *string `json:"next_maintenance_date"`
 	MaintenanceNotes       string  `json:"maintenance_notes"`
 	
-	// Attachments (file uploads will be handled separately)
-	Attachments []string `json:"attachments,omitempty"`
+	// Complete registration data
+	Documents    interface{} `json:"documents,omitempty"`
+	OwnerData    interface{} `json:"owner_data,omitempty"`
+	Attachments  []string    `json:"attachments,omitempty"`
 }

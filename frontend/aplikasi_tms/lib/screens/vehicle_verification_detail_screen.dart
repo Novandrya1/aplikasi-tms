@@ -281,6 +281,27 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   }
 
   Widget _buildDocumentsCard() {
+    // Group documents by category
+    Map<String, List<Map<String, dynamic>>> groupedDocs = {
+      'Dokumen Pemilik': [],
+      'Dokumen Kendaraan': [],
+      'Foto Kendaraan': [],
+      'Dokumen Perusahaan': [],
+    };
+    
+    for (var doc in _attachments) {
+      String type = doc['attachment_type'] ?? '';
+      if (type.contains('ktp') || type.contains('selfie')) {
+        groupedDocs['Dokumen Pemilik']!.add(doc);
+      } else if (type.contains('stnk') || type.contains('bpkb') || type.contains('tax') || type.contains('insurance')) {
+        groupedDocs['Dokumen Kendaraan']!.add(doc);
+      } else if (type.contains('vehicle_photo')) {
+        groupedDocs['Foto Kendaraan']!.add(doc);
+      } else if (type.contains('business') || type.contains('npwp')) {
+        groupedDocs['Dokumen Perusahaan']!.add(doc);
+      }
+    }
+
     return Card(
       child: Padding(
         padding: EdgeInsets.all(16),
@@ -292,39 +313,55 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                 Icon(Icons.folder_open, color: Colors.purple[600]),
                 SizedBox(width: 8),
                 Text(
-                  'Dokumen Pendukung',
+                  'Dokumen Lengkap Registrasi',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Spacer(),
-                Text(
-                  '${_attachments.length} dokumen',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _attachments.length >= 6 ? Colors.green[100] : Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_attachments.length} dokumen',
+                    style: TextStyle(
+                      color: _attachments.length >= 6 ? Colors.green[700] : Colors.orange[700],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            SizedBox(height: 16),
             if (_attachments.isEmpty)
               Container(
                 padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
+                  color: Colors.red[50],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[200]!),
+                  border: Border.all(color: Colors.red[200]!),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning, color: Colors.orange[600]),
+                    Icon(Icons.error, color: Colors.red[600]),
                     SizedBox(width: 8),
-                    Text(
-                      'Belum ada dokumen yang diupload',
-                      style: TextStyle(color: Colors.orange[800]),
+                    Expanded(
+                      child: Text(
+                        'Tidak ada dokumen yang diupload. Registrasi tidak lengkap!',
+                        style: TextStyle(color: Colors.red[800]),
+                      ),
                     ),
                   ],
                 ),
               )
             else
               Column(
-                children: _attachments.map((doc) => _buildDocumentItem(doc)).toList(),
+                children: groupedDocs.entries.map((entry) {
+                  if (entry.value.isEmpty) return SizedBox.shrink();
+                  return _buildDocumentGroup(entry.key, entry.value);
+                }).toList(),
               ),
           ],
         ),
@@ -332,41 +369,192 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     );
   }
 
-  Widget _buildDocumentItem(Map<String, dynamic> doc) {
+  Widget _buildDocumentGroup(String groupName, List<Map<String, dynamic>> docs) {
+    Color groupColor = Colors.blue;
+    IconData groupIcon = Icons.folder;
+    
+    switch (groupName) {
+      case 'Dokumen Pemilik':
+        groupColor = Colors.green;
+        groupIcon = Icons.person;
+        break;
+      case 'Dokumen Kendaraan':
+        groupColor = Colors.orange;
+        groupIcon = Icons.directions_car;
+        break;
+      case 'Foto Kendaraan':
+        groupColor = Colors.purple;
+        groupIcon = Icons.camera_alt;
+        break;
+      case 'Dokumen Perusahaan':
+        groupColor = Colors.indigo;
+        groupIcon = Icons.business;
+        break;
+    }
+    
     return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(12),
+      margin: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: groupColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: groupColor.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(groupIcon, color: groupColor, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  groupName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: groupColor,
+                    fontSize: 14,
+                  ),
+                ),
+                Spacer(),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: groupColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${docs.length}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 8),
+          Column(
+            children: docs.map((doc) => _buildDocumentItem(doc)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(Map<String, dynamic> doc) {
+    String docType = doc['attachment_type'] ?? '';
+    String displayName = _getDocumentDisplayName(docType);
+    
+    return Container(
+      margin: EdgeInsets.only(bottom: 6),
+      padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: Colors.grey[300]!),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.description, color: Colors.blue[600]),
+          Container(
+            padding: EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              _getDocumentIcon(docType),
+              color: Colors.blue[600],
+              size: 18,
+            ),
+          ),
           SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  doc['attachment_type'] ?? '',
-                  style: TextStyle(fontWeight: FontWeight.w500),
+                  displayName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
                 ),
                 Text(
                   doc['file_name'] ?? '',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            onPressed: () => _viewDocument(doc),
-            icon: Icon(Icons.visibility, color: Colors.blue[600]),
-            tooltip: 'Lihat Dokumen',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _viewDocument(doc),
+                icon: Icon(Icons.visibility, size: 18),
+                tooltip: 'Lihat',
+                padding: EdgeInsets.all(4),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+              IconButton(
+                onPressed: () => _downloadDocument(doc),
+                icon: Icon(Icons.download, size: 18),
+                tooltip: 'Download',
+                padding: EdgeInsets.all(4),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _getDocumentDisplayName(String type) {
+    switch (type.toLowerCase()) {
+      case 'ktp': return 'KTP Pemilik';
+      case 'selfie_ktp': return 'Foto Selfie + KTP';
+      case 'stnk': return 'STNK';
+      case 'bpkb': return 'BPKB';
+      case 'tax_receipt': return 'Bukti Pajak';
+      case 'insurance': return 'Asuransi';
+      case 'business_license': return 'SIUP/NIB';
+      case 'npwp': return 'NPWP';
+      default:
+        if (type.contains('vehicle_photo')) {
+          return 'Foto Kendaraan ${type.split('_').last}';
+        }
+        return type.replaceAll('_', ' ').toUpperCase();
+    }
+  }
+
+  IconData _getDocumentIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'ktp':
+      case 'selfie_ktp':
+        return Icons.badge;
+      case 'stnk':
+      case 'bpkb':
+        return Icons.description;
+      case 'tax_receipt':
+        return Icons.receipt;
+      case 'insurance':
+        return Icons.security;
+      case 'business_license':
+      case 'npwp':
+        return Icons.business;
+      default:
+        if (type.contains('vehicle_photo')) {
+          return Icons.photo;
+        }
+        return Icons.insert_drive_file;
+    }
   }
 
   Widget _buildVerificationCard() {
@@ -605,15 +793,116 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   void _viewDocument(Map<String, dynamic> doc) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Dokumen: ${doc['file_name']}'),
-        content: Text('Preview dokumen akan ditampilkan di sini'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Tutup'),
+      builder: (context) => Dialog(
+        child: Container(
+          width: 600,
+          height: 500,
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.blue[600],
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8),
+                    topRight: Radius.circular(8),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.description, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _getDocumentDisplayName(doc['attachment_type'] ?? ''),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('File: ${doc['file_name'] ?? 'Unknown'}'),
+                      Text('Tipe: ${doc['attachment_type'] ?? 'Unknown'}'),
+                      SizedBox(height: 16),
+                      Expanded(
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.image, size: 64, color: Colors.grey[400]),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Preview dokumen',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Klik download untuk melihat file asli',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _downloadDocument(doc),
+                      icon: Icon(Icons.download),
+                      label: Text('Download'),
+                    ),
+                    SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Tutup'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _downloadDocument(Map<String, dynamic> doc) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Mengunduh ${doc['file_name']}...'),
+        backgroundColor: Colors.blue,
       ),
     );
   }
