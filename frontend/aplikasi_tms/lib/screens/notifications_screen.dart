@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/dashboard_service.dart';
+import '../widgets/bottom_nav_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
   @override
@@ -7,6 +8,7 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
+  int _currentIndex = 2;
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
 
@@ -37,8 +39,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Notifikasi'),
-        backgroundColor: Colors.blue[600],
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
@@ -60,7 +64,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       },
                     ),
             ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onBottomNavTap,
+      ),
     );
+  }
+
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/dashboard');
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/analytics');
+        break;
+      case 2:
+        // Already on notifications
+        break;
+      case 3:
+        Navigator.pushNamed(context, '/profile');
+        break;
+    }
   }
 
   Widget _buildEmptyState() {

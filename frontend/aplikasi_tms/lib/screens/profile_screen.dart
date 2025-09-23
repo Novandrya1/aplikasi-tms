@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/models.dart';
+import '../widgets/bottom_nav_bar.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -10,6 +11,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   User? _user;
+  int _currentIndex = 3;
 
   @override
   void initState() {
@@ -24,9 +26,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  void _onBottomNavTap(int index) {
+    switch (index) {
+      case 0:
+        Navigator.pushReplacementNamed(context, '/dashboard');
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/analytics');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 3:
+        // Already on profile
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Profil'),
+        backgroundColor: Color(0xFF1976D2),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -167,6 +193,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onBottomNavTap,
       ),
     );
   }

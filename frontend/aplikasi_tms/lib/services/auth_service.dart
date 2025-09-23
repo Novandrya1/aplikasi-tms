@@ -11,7 +11,7 @@ class AuthService {
     final request = LoginRequest(email: email, password: password);
     
     final response = await http.post(
-      Uri.parse('$baseUrl/login'),
+      Uri.parse('$baseUrl/api/v1/login'),
       headers: ApiConfig.headers,
       body: jsonEncode(request.toJson()),
     );
@@ -43,7 +43,7 @@ class AuthService {
       // Validate token with backend
       try {
         final response = await http.get(
-          Uri.parse('$baseUrl/ping'),
+          Uri.parse('$baseUrl/api/v1/ping'),
           headers: authHeaders(token),
         ).timeout(const Duration(seconds: 10));
         
@@ -111,7 +111,7 @@ class AuthService {
     print('Register payload: ${jsonEncode(request.toJson())}');
     
     final response = await http.post(
-      Uri.parse('$baseUrl/register'),
+      Uri.parse('$baseUrl/api/v1/register'),
       headers: ApiConfig.headers,
       body: jsonEncode(request.toJson()),
     );

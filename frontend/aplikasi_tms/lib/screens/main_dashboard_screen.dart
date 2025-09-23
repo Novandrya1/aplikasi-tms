@@ -34,6 +34,30 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard - TMS'),
+        backgroundColor: Color(0xFF1976D2),
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+            icon: Icon(Icons.notifications),
+            tooltip: 'Notifications',
+          ),
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, '/profile'),
+            icon: Icon(Icons.account_circle),
+            tooltip: 'Profile',
+          ),
+          IconButton(
+            onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+            icon: Icon(Icons.logout),
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -48,71 +72,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Custom App Bar
-              Container(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.local_shipping,
-                        color: Color(0xFF1976D2),
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'TMS Dashboard',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
-                            ),
-                          ),
-                          Text(
-                            'Transport Management System',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                      icon: Icon(Icons.notifications, color: Colors.grey[600]),
-                      tooltip: 'Notifications',
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pushNamed(context, '/profile'),
-                      icon: Icon(Icons.account_circle, color: Colors.grey[600]),
-                      tooltip: 'Profile',
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                      icon: Icon(Icons.logout, color: Colors.grey[600]),
-                      tooltip: 'Logout',
-                    ),
-                  ],
-                ),
-              ),
+
               
               // Main Content
               Expanded(
