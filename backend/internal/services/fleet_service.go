@@ -151,18 +151,18 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 		
 		// Save owner documents
 		if ktpFile, ok := documents["ktp_file"].(string); ok && ktpFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "ktp", ktpFile, "KTP_Pemilik.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "ktp", ktpFile, "KTP_Pemilik.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save KTP document: %v", err)
 			}
 		}
 		
 		if selfieFile, ok := documents["selfie_file"].(string); ok && selfieFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "selfie_ktp", selfieFile, "Selfie_KTP.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "selfie_ktp", selfieFile, "Selfie_KTP.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save selfie document: %v", err)
 			}
@@ -170,36 +170,36 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 		
 		// Save vehicle documents
 		if stnkFile, ok := documents["stnk_file"].(string); ok && stnkFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "stnk", stnkFile, "STNK.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "stnk", stnkFile, "STNK.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save STNK document: %v", err)
 			}
 		}
 		
 		if bpkbFile, ok := documents["bpkb_file"].(string); ok && bpkbFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "bpkb", bpkbFile, "BPKB.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "bpkb", bpkbFile, "BPKB.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save BPKB document: %v", err)
 			}
 		}
 		
 		if taxFile, ok := documents["tax_file"].(string); ok && taxFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "tax_receipt", taxFile, "Bukti_Pajak.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "tax_receipt", taxFile, "Bukti_Pajak.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save tax document: %v", err)
 			}
 		}
 		
 		if insuranceFile, ok := documents["insurance_file"].(string); ok && insuranceFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "insurance", insuranceFile, "Asuransi.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "insurance", insuranceFile, "Asuransi.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save insurance document: %v", err)
 			}
@@ -207,18 +207,18 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 		
 		// Save company documents if applicable
 		if businessLicenseFile, ok := documents["business_license_file"].(string); ok && businessLicenseFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "business_license", businessLicenseFile, "SIUP_NIB.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "business_license", businessLicenseFile, "SIUP_NIB.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save business license: %v", err)
 			}
 		}
 		
 		if npwpFile, ok := documents["npwp_file"].(string); ok && npwpFile != "" {
-			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-							 VALUES ($1, $2, $3, $4, $5)`, 
-							 vehicle.ID, "npwp", npwpFile, "NPWP.jpg", fleetOwnerID)
+			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+							 VALUES ($1, $2, $3, $4)`, 
+							 vehicle.ID, "npwp", npwpFile, "NPWP.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save NPWP document: %v", err)
 			}
@@ -230,9 +230,9 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 				if photoPath, ok := photo.(string); ok && photoPath != "" {
 					photoType := fmt.Sprintf("vehicle_photo_%d", i+1)
 					fileName := fmt.Sprintf("Foto_Kendaraan_%d.jpg", i+1)
-					_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name, uploaded_by) 
-									 VALUES ($1, $2, $3, $4, $5)`, 
-									 vehicle.ID, photoType, photoPath, fileName, fleetOwnerID)
+					_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
+									 VALUES ($1, $2, $3, $4)`, 
+									 vehicle.ID, photoType, photoPath, fileName)
 					if err != nil {
 						return nil, fmt.Errorf("failed to save vehicle photo %d: %v", i+1, err)
 					}
