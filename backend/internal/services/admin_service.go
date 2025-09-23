@@ -300,7 +300,7 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 			  v.ownership_status, v.operational_status, v.verification_status, v.verification_substatus,
 			  v.insurance_company, v.insurance_policy_number, v.insurance_expiry_date,
 			  v.last_maintenance_date, v.next_maintenance_date, v.maintenance_notes,
-			  v.created_at, v.updated_at,
+			  v.created_at, v.updated_at, v.verification_notes,
 			  COALESCE(fo.company_name, '') as company_name, 
 			  COALESCE(fo.business_license, '') as business_license, 
 			  COALESCE(fo.address, '') as address, 
@@ -311,7 +311,8 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 			  COALESCE(fo.npwp, '') as npwp,
 			  COALESCE(u.full_name, '') as full_name, 
 			  COALESCE(u.email, '') as email, 
-			  COALESCE(u.username, '') as username
+			  COALESCE(u.username, '') as username,
+			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
 			  LEFT JOIN users u ON fo.user_id = u.id
@@ -321,13 +322,13 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	
 	row := db.QueryRow(query, vehicleID)
 	
-	var id, year int
+	var id, year, daysWaiting int
 	var regNumber, vehicleType, brand, model, chassisNumber, engineNumber, color string
 	var capacityWeight, capacityVolume sql.NullFloat64
 	var ownershipStatus, operationalStatus, verificationStatus, verificationSubstatus string
 	var insuranceCompany, insurancePolicyNumber sql.NullString
 	var insuranceExpiryDate, lastMaintenanceDate, nextMaintenanceDate sql.NullTime
-	var maintenanceNotes sql.NullString
+	var maintenanceNotes, verificationNotes sql.NullString
 	var createdAt, updatedAt string
 	var companyName, businessLicense, address, phone, ownerEmailFo, ownerNameFo, ktpNumber, npwp string
 	var fullName, email, username string
@@ -338,10 +339,10 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 		&ownershipStatus, &operationalStatus, &verificationStatus, &verificationSubstatus,
 		&insuranceCompany, &insurancePolicyNumber, &insuranceExpiryDate,
 		&lastMaintenanceDate, &nextMaintenanceDate, &maintenanceNotes,
-		&createdAt, &updatedAt,
+		&createdAt, &updatedAt, &verificationNotes,
 		&companyName, &businessLicense, &address, &phone,
 		&ownerEmailFo, &ownerNameFo, &ktpNumber, &npwp,
-		&fullName, &email, &username,
+		&fullName, &email, &username, &daysWaiting,
 	)
 
 	if err != nil {
@@ -383,9 +384,13 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	if maintenanceNotes.Valid {
 		vehicle["maintenance_notes"] = maintenanceNotes.String
 	}
+	if verificationNotes.Valid {
+		vehicle["verification_notes"] = verificationNotes.String
+	}
 	
 	vehicle["created_at"] = createdAt
 	vehicle["updated_at"] = updatedAt
+	vehicle["days_waiting"] = daysWaiting
 	
 	// Fleet owner info - prioritize fleet_owners table data
 	vehicle["company_name"] = companyName

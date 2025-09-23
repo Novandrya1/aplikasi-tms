@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/admin_service.dart';
 import 'vehicle_verification_detail_screen.dart';
 
@@ -13,11 +14,24 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
   Map<String, dynamic>? _dashboardData;
   bool _isLoading = true;
   String _selectedFilter = 'all';
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
+    // Auto refresh every 30 seconds
+    _refreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _loadDashboardData();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -44,6 +58,43 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
         backgroundColor: Colors.red[600],
         foregroundColor: Colors.white,
         actions: [
+          if (_dashboardData != null && (_dashboardData!['pending_count'] ?? 0) > 0)
+            Container(
+              margin: EdgeInsets.only(right: 8),
+              child: Stack(
+                children: [
+                  IconButton(
+                    onPressed: () => _navigateToStatusList(AdminService.statusPending),
+                    icon: Icon(Icons.notification_important),
+                    tooltip: 'Verifikasi Pending',
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '${_dashboardData!['pending_count']}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           IconButton(
             onPressed: _loadDashboardData,
             icon: Icon(Icons.refresh),
@@ -108,8 +159,9 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
               'Menunggu Verifikasi',
               pendingCount.toString(),
               Icons.pending,
-              Colors.orange,
+              pendingCount > 0 ? Colors.orange : Colors.grey,
               () => _navigateToStatusList(AdminService.statusPending),
+              showBadge: pendingCount > 0,
             ),
             _buildStatCard(
               'Perlu Perbaikan',
@@ -154,44 +206,76 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
     );
   }
 
-  Widget _buildStatCard(String title, String count, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildStatCard(String title, String count, IconData icon, Color color, VoidCallback onTap, {bool showBadge = false}) {
+    final countInt = int.tryParse(count) ?? 0;
     return Card(
-      elevation: 4,
+      elevation: showBadge ? 6 : 4,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: showBadge ? Border.all(color: color, width: 2) : null,
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: color, size: 24),
+                    ),
+                    if (showBadge && countInt > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            countInt > 99 ? '99+' : count,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              SizedBox(height: 12),
-              Text(
-                count,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+                SizedBox(height: 12),
+                Text(
+                  count,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
                 ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                SizedBox(height: 4),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: showBadge ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

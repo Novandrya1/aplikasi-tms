@@ -186,13 +186,26 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _vehicle!['registration_number'] ?? '',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        _vehicle!['registration_number'] ?? 'Nomor Polisi Belum Diisi',
+                        style: TextStyle(
+                          fontSize: 20, 
+                          fontWeight: FontWeight.bold,
+                          color: (_vehicle!['registration_number'] ?? '').isEmpty ? Colors.red : Colors.black,
+                        ),
                       ),
                       Text(
-                        '${_vehicle!['brand']} ${_vehicle!['model']} (${_vehicle!['year']})',
+                        '${_vehicle!['brand'] ?? 'N/A'} ${_vehicle!['model'] ?? 'N/A'} (${_vehicle!['year'] ?? 'N/A'})',
                         style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
+                      if ((_vehicle!['days_waiting'] ?? 0) > 0)
+                        Text(
+                          'Menunggu ${_vehicle!['days_waiting']} hari',
+                          style: TextStyle(
+                            fontSize: 12, 
+                            color: (_vehicle!['days_waiting'] ?? 0) > 7 ? Colors.red : Colors.orange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -228,6 +241,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   }
 
   Widget _buildOwnerInfoCard() {
+    final ownerType = _vehicle!['owner_type'] ?? 'individual';
+    final isCompany = ownerType == 'company';
+    
     return Card(
       child: Padding(
         padding: EdgeInsets.all(16),
@@ -236,18 +252,27 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
           children: [
             Row(
               children: [
-                Icon(Icons.business, color: Colors.green[600]),
+                Icon(isCompany ? Icons.business : Icons.person, color: Colors.green[600]),
                 SizedBox(width: 8),
                 Text(
-                  'Informasi Pemilik',
+                  'Informasi Pemilik ${isCompany ? 'Perusahaan' : 'Individu'}',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             SizedBox(height: 12),
-            _buildInfoRow(Icons.apartment, 'Perusahaan', _vehicle!['company_name']),
+            if (isCompany) ...[
+              _buildInfoRow(Icons.apartment, 'Nama Perusahaan', _vehicle!['company_name']),
+              _buildInfoRow(Icons.description, 'SIUP/NIB', _vehicle!['business_license']),
+            ],
             _buildInfoRow(Icons.person, 'Nama Pemilik', _vehicle!['owner_name']),
+            _buildInfoRow(Icons.badge, 'No. KTP', _vehicle!['ktp_number']),
+            if (isCompany)
+              _buildInfoRow(Icons.receipt_long, 'NPWP', _vehicle!['npwp']),
             _buildInfoRow(Icons.email, 'Email', _vehicle!['owner_email']),
+            _buildInfoRow(Icons.phone, 'Telepon', _vehicle!['owner_phone']),
+            _buildInfoRow(Icons.location_on, 'Alamat', _vehicle!['owner_address']),
+            _buildInfoRow(Icons.account_circle, 'Username', _vehicle!['owner_username']),
           ],
         ),
       ),
@@ -266,14 +291,26 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                 Icon(Icons.build, color: Colors.orange[600]),
                 SizedBox(width: 8),
                 Text(
-                  'Informasi Teknis',
+                  'Spesifikasi Teknis Armada',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             SizedBox(height: 12),
+            _buildInfoRow(Icons.confirmation_number, 'No. Polisi', _vehicle!['registration_number']),
+            _buildInfoRow(Icons.directions_car, 'Jenis Kendaraan', _vehicle!['vehicle_type']),
+            _buildInfoRow(Icons.branding_watermark, 'Merek', _vehicle!['brand']),
+            _buildInfoRow(Icons.model_training, 'Model/Tipe', _vehicle!['model']),
+            _buildInfoRow(Icons.calendar_today, 'Tahun', _vehicle!['year']?.toString()),
             _buildInfoRow(Icons.confirmation_number, 'No. Rangka', _vehicle!['chassis_number']),
             _buildInfoRow(Icons.settings, 'No. Mesin', _vehicle!['engine_number']),
+            _buildInfoRow(Icons.palette, 'Warna', _vehicle!['color']),
+            if (_vehicle!['capacity_weight'] != null)
+              _buildInfoRow(Icons.fitness_center, 'Kapasitas Berat', '${_vehicle!['capacity_weight']} kg'),
+            if (_vehicle!['capacity_volume'] != null)
+              _buildInfoRow(Icons.all_inbox, 'Kapasitas Volume', '${_vehicle!['capacity_volume']} m³'),
+            _buildInfoRow(Icons.business_center, 'Status Kepemilikan', _vehicle!['ownership_status']),
+            _buildInfoRow(Icons.traffic, 'Status Operasional', _vehicle!['operational_status']),
           ],
         ),
       ),
@@ -765,26 +802,37 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   }
 
   Widget _buildInfoRow(IconData icon, String label, String? value) {
+    final isEmpty = (value ?? '').isEmpty;
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
+          Icon(icon, size: 16, color: isEmpty ? Colors.red[400] : Colors.grey[600]),
           SizedBox(width: 8),
           SizedBox(
-            width: 100,
+            width: 120,
             child: Text(
               '$label:',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.w500, 
+                fontSize: 13,
+                color: isEmpty ? Colors.red[600] : Colors.black87,
+              ),
             ),
           ),
           Expanded(
             child: Text(
-              value ?? 'N/A',
-              style: TextStyle(fontSize: 13),
+              isEmpty ? 'Belum diisi' : value!,
+              style: TextStyle(
+                fontSize: 13,
+                color: isEmpty ? Colors.red[600] : Colors.black87,
+                fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
+              ),
             ),
           ),
+          if (isEmpty)
+            Icon(Icons.warning, size: 14, color: Colors.red[400]),
         ],
       ),
     );
