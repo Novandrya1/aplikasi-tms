@@ -29,7 +29,7 @@ class CustomBottomNavBar extends StatelessWidget {
         onTap: onTap,
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: Color(0xFF1976D2),
         unselectedItemColor: Colors.grey[600],
         selectedLabelStyle: TextStyle(
           fontWeight: FontWeight.w600,
@@ -67,7 +67,7 @@ class CustomBottomNavBar extends StatelessWidget {
       duration: Duration(milliseconds: 200),
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.transparent,
+        color: isSelected ? Color(0xFF1976D2).withOpacity(0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(

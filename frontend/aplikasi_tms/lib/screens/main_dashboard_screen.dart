@@ -40,8 +40,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue[50]!,
-              Colors.indigo[100]!,
+              Color(0xFFE3F2FD),
+              Color(0xFFBBDEFB),
             ],
           ),
         ),
@@ -68,7 +68,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       ),
                       child: Icon(
                         Icons.local_shipping,
-                        color: Colors.blue[600],
+                        color: Color(0xFF1976D2),
                         size: 28,
                       ),
                     ),
@@ -127,7 +127,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.blue[600]!, Colors.blue[800]!],
+                            colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
@@ -352,28 +352,28 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             context,
                             'Registrasi Armada', 
                             Icons.app_registration, 
-                            Colors.red,
+                            Color(0xFF1976D2),
                             () => Navigator.pushNamed(context, '/fleet-register'),
                           ),
                           _buildQuickActionCard(
                             context,
                             'GPS Tracking', 
                             Icons.gps_fixed, 
-                            Colors.orange,
+                            Color(0xFF1565C0),
                             () {},
                           ),
                           _buildQuickActionCard(
                             context,
                             'Fleet Management', 
                             Icons.directions_car, 
-                            Colors.purple,
+                            Color(0xFF0D47A1),
                             () => Navigator.pushNamed(context, '/fleet-management'),
                           ),
                           _buildQuickActionCard(
                             context,
                             'Analytics', 
                             Icons.analytics, 
-                            Colors.indigo,
+                            Color(0xFF42A5F5),
                             () => Navigator.pushNamed(context, '/analytics'),
                           ),
                         ],

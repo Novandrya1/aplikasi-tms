@@ -55,8 +55,10 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
     return Scaffold(
       appBar: AppBar(
         title: Text('Verifikasi Armada'),
-        backgroundColor: Colors.red[600],
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
         actions: [
           if (_dashboardData != null && (_dashboardData!['pending_count'] ?? 0) > 0)
             Container(
@@ -770,6 +772,9 @@ class _VehicleStatusListScreenState extends State<VehicleStatusListScreen> {
       List<Map<String, dynamic>> vehicles;
       if (widget.status == 'all') {
         vehicles = await AdminService.getAllVehicles();
+      } else if (widget.status == AdminService.statusPending) {
+        // Use pending vehicles endpoint for better accuracy
+        vehicles = await AdminService.getPendingVehicles();
       } else {
         vehicles = await AdminService.getVehiclesByStatus(widget.status);
       }
@@ -809,8 +814,10 @@ class _VehicleStatusListScreenState extends State<VehicleStatusListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: Colors.red[600],
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
         actions: [
           IconButton(
             onPressed: _loadVehicles,

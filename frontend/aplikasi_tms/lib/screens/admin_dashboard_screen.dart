@@ -15,8 +15,10 @@ class AdminDashboardScreen extends StatelessWidget {
       drawer: _buildDrawer(context),
       appBar: AppBar(
         title: const Text('Admin - TMS Dashboard'),
-        backgroundColor: Colors.red,
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
         actions: [
           IconButton(
             icon: const Icon(Icons.history),
@@ -44,11 +46,18 @@ class AdminDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.red[400]!, Colors.red[600]!],
+                  colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
@@ -170,10 +179,13 @@ class AdminDashboardScreen extends StatelessWidget {
 
   Widget _buildLevelHeader(String title) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Color(0xFF1976D2).withOpacity(0.2)),
       ),
       child: Text(
         title,
@@ -272,7 +284,7 @@ class AdminDashboardScreen extends StatelessWidget {
           DrawerHeader(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.red[400]!, Colors.red[600]!],
+                colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
               ),
             ),
             child: Column(

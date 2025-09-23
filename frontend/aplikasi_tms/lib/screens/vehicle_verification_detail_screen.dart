@@ -81,8 +81,10 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       child: Scaffold(
         appBar: AppBar(
         title: Text('Verifikasi Kendaraan'),
-        backgroundColor: Colors.red[600],
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
         actions: [
           IconButton(
             onPressed: _showVerificationHistory,

@@ -13,8 +13,10 @@ class _OrderManagementScreenState extends State<OrderManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Management'),
-        backgroundColor: Colors.green,
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
       ),
       body: GridView.count(
         crossAxisCount: 2,

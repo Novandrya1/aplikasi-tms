@@ -10,8 +10,10 @@ class TransportManagementScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transport Management System (TMS)'),
-        backgroundColor: Colors.blue,
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.blue.withOpacity(0.3),
       ),
       body: Container(
         decoration: BoxDecoration(

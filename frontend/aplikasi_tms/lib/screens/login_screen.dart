@@ -27,42 +27,54 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
             colors: [
-              Color(0xFF2196F3),
-              Color(0xFF1976D2),
+              Color(0xFF1565C0),
+              Color(0xFF0D47A1),
             ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(24.0),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+              padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 400),
+                child: Card(
+                  elevation: 12,
+                  shadowColor: Colors.blue.withOpacity(0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
                         // Logo
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 90,
+                          height: 90,
                           decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(16),
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Icon(
                             Icons.local_shipping,
                             color: Colors.white,
-                            size: 40,
+                            size: 45,
                           ),
                         ),
                         SizedBox(height: 24),
@@ -144,7 +156,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
+                              backgroundColor: Color(0xFF1976D2),
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              shadowColor: Colors.blue.withOpacity(0.4),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -171,8 +186,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             'Belum punya akun? Daftar di sini',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: Color(0xFF1976D2),
                               fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -182,9 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         Container(
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue[200]!),
+                            gradient: LinearGradient(
+                              colors: [Color(0xFFE3F2FD), Color(0xFFBBDEFB)],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Color(0xFF1976D2).withOpacity(0.3)),
                           ),
                           child: Column(
                             children: [
@@ -192,22 +210,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                 'Demo Login:',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue[800],
+                                  color: Color(0xFF0D47A1),
                                 ),
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Email: admin@tms.com',
-                                style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                                'Email: superadmin@tms.com',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF1565C0), fontWeight: FontWeight.w500),
                               ),
                               Text(
-                                'Password: password',
-                                style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                                'Password: 12345678',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF1565C0), fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
