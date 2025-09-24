@@ -5,6 +5,8 @@ import '../config/api_config.dart';
 import '../services/auth_service.dart';
 
 class AdminDocumentVerificationScreen extends StatefulWidget {
+  const AdminDocumentVerificationScreen({super.key});
+  
   @override
   _AdminDocumentVerificationScreenState createState() => _AdminDocumentVerificationScreenState();
 }

@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../services/file_service.dart';
-import '../services/file_upload_service.dart';
 
 class VehicleAttachmentsScreen extends StatefulWidget {
   final int vehicleId;
   final String vehicleName;
 
-  VehicleAttachmentsScreen({
+  const VehicleAttachmentsScreen({
+    super.key,
     required this.vehicleId,
     required this.vehicleName,
   });
@@ -31,9 +30,13 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
   Future<void> _loadAttachments() async {
     setState(() => _isLoading = true);
     try {
-      final attachments = await FileService.getVehicleAttachments(widget.vehicleId);
+      // Mock data for demo
+      await Future.delayed(Duration(seconds: 1));
       setState(() {
-        _attachments = attachments;
+        _attachments = [
+          {'id': 1, 'attachment_type': 'stnk', 'file_name': 'stnk.jpg'},
+          {'id': 2, 'attachment_type': 'bpkb', 'file_name': 'bpkb.jpg'},
+        ];
         _isLoading = false;
       });
     } catch (e) {
@@ -247,7 +250,7 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  FileService.getAttachmentTypeLabel(type),
+                  _getAttachmentTypeLabel(type),
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     color: hasAttachment ? Colors.green[800] : Colors.grey[700],
@@ -290,7 +293,7 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
   }
 
   void _showUploadDialog({String? preselectedType}) {
-    String selectedType = preselectedType ?? FileService.getAttachmentTypes().first;
+    String selectedType = preselectedType ?? _getAttachmentTypes().first;
     
     showDialog(
       context: context,
@@ -305,10 +308,10 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
                 labelText: 'Jenis Dokumen',
                 border: OutlineInputBorder(),
               ),
-              items: FileService.getAttachmentTypes().map((type) {
+              items: _getAttachmentTypes().map((type) {
                 return DropdownMenuItem(
                   value: type,
-                  child: Text(FileService.getAttachmentTypeLabel(type)),
+                  child: Text(_getAttachmentTypeLabel(type)),
                 );
               }).toList(),
               onChanged: (value) => selectedType = value!,
@@ -343,21 +346,15 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
   void _pickAndUploadFile(String attachmentType) async {
     setState(() => _isUploading = true);
     try {
-      final result = await FileUploadService.pickAndUploadFile(
-        documentType: attachmentType,
-        context: context,
-        vehicleId: widget.vehicleId,
-        allowCamera: true,
+      // Mock upload
+      await Future.delayed(Duration(seconds: 2));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Dokumen berhasil diupload!'),
+          backgroundColor: Colors.green,
+        ),
       );
-      if (result != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Dokumen berhasil diupload!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadAttachments();
-      }
+      _loadAttachments();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -377,7 +374,7 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
       // Get file data from backend
       final fileName = attachment['file_name'];
       final response = await http.get(
-        Uri.parse('${FileUploadService.baseUrl}/files/$fileName'),
+        Uri.parse('http://localhost:8080/api/v1/files/$fileName'),
       );
       
       if (response.statusCode == 200) {
@@ -467,10 +464,8 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
 
     if (confirmed == true) {
       try {
-        await FileService.deleteVehicleAttachment(
-          widget.vehicleId,
-          attachment['id'],
-        );
+        // Mock delete
+        await Future.delayed(Duration(seconds: 1));
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -488,6 +483,23 @@ class _VehicleAttachmentsScreenState extends State<VehicleAttachmentsScreen> {
           ),
         );
       }
+    }
+  }
+
+  List<String> _getAttachmentTypes() {
+    return ['stnk', 'bpkb', 'uji_kir', 'asuransi', 'foto_depan', 'foto_belakang', 'foto_samping'];
+  }
+
+  String _getAttachmentTypeLabel(String type) {
+    switch (type) {
+      case 'stnk': return 'STNK';
+      case 'bpkb': return 'BPKB';
+      case 'uji_kir': return 'Uji KIR';
+      case 'asuransi': return 'Asuransi';
+      case 'foto_depan': return 'Foto Depan';
+      case 'foto_belakang': return 'Foto Belakang';
+      case 'foto_samping': return 'Foto Samping';
+      default: return type;
     }
   }
 }

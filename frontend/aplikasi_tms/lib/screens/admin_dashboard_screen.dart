@@ -25,7 +25,7 @@ class AdminDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.history),
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(
-                builder: (context) => AdminVehiclesScreen(filter: 'history'),
+                builder: (context) => const AdminVehiclesScreen(filter: 'history'),
               ));
             },
             tooltip: 'Riwayat Verifikasi',
@@ -150,7 +150,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 }),
                 _buildAdminCard('Kelola\nKendaraan', Icons.directions_car, Colors.blue, () {
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => AdminVehiclesScreen(filter: 'all'),
+                    builder: (context) => const AdminVehiclesScreen(filter: 'all'),
                   ));
                 }),
                 _buildAdminCard('User\nManagement', Icons.people, Colors.purple, () {
@@ -167,12 +167,12 @@ class AdminDashboardScreen extends StatelessWidget {
                 }),
                 _buildAdminCard('OCR\nDemo', Icons.document_scanner, Colors.cyan, () {
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => OCRDemoScreen(),
+                    builder: (context) => const OCRDemoScreen(),
                   ));
                 }),
                 _buildAdminCard('Verifikasi\nDokumen', Icons.description, Colors.red, () {
                   Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => AdminDocumentVerificationScreen(),
+                    builder: (context) => const AdminDocumentVerificationScreen(),
                   ));
                 }),
               ],

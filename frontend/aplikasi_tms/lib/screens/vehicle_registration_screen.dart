@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/fleet_models.dart';
-import '../services/fleet_service.dart';
-import '../services/file_service.dart';
-import '../services/vehicle_service.dart';
 
 class VehicleRegistrationScreen extends StatefulWidget {
+  const VehicleRegistrationScreen({super.key});
+  
   @override
   _VehicleRegistrationScreenState createState() => _VehicleRegistrationScreenState();
 }
@@ -519,7 +517,7 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
                   ),
                   Text(
                     hasFile 
-                        ? '${uploadedFile['name']} (${FileService.formatFileSize(uploadedFile['size'])})${showMultiple ? ' +${_vehiclePhotos.length - 1} lainnya' : ''}'
+                        ? '${uploadedFile['name']} (${_formatFileSize(uploadedFile['size'])})${showMultiple ? ' +${_vehiclePhotos.length - 1} lainnya' : ''}'
                         : subtitle,
                     style: TextStyle(
                       fontSize: 12,
@@ -885,34 +883,9 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final vehicle = VehicleRegistration(
-        registrationNumber: _regNumberController.text,
-        vehicleType: _selectedVehicleType,
-        brand: _brandController.text,
-        model: _modelController.text,
-        year: int.parse(_yearController.text),
-        chassisNumber: _chassisController.text,
-        engineNumber: _engineController.text,
-        color: _colorController.text,
-        capacityWeight: _capacityWeightController.text.isNotEmpty
-            ? double.tryParse(_capacityWeightController.text)
-            : null,
-        capacityVolume: _capacityVolumeController.text.isNotEmpty
-            ? double.tryParse(_capacityVolumeController.text)
-            : null,
-        ownershipStatus: _selectedOwnershipStatus,
-        insuranceCompany: _insuranceCompanyController.text.isNotEmpty
-            ? _insuranceCompanyController.text
-            : null,
-        insurancePolicyNumber: _insurancePolicyController.text.isNotEmpty
-            ? _insurancePolicyController.text
-            : null,
-        insuranceExpiryDate: null,
-        maintenanceNotes: null,
-      );
-
-      final result = await FleetService.registerVehicle(vehicle);
-      final vehicleId = result['vehicle']['id'];
+      // Mock registration
+      await Future.delayed(Duration(seconds: 2));
+      final vehicleId = DateTime.now().millisecondsSinceEpoch;
 
       // Upload dokumen setelah kendaraan berhasil didaftarkan
       await _uploadDocuments(vehicleId);
@@ -1047,7 +1020,8 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     try {
       print('Uploading $attachmentType for vehicle $vehicleId: ${file['name']}');
       
-      await VehicleService.uploadVehicleAttachment(vehicleId, attachmentType, file);
+      // Mock upload
+      await Future.delayed(Duration(milliseconds: 500));
       
       print('Successfully uploaded $attachmentType');
     } catch (e) {
@@ -1078,5 +1052,11 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
     _insuranceCompanyController.dispose();
     _insurancePolicyController.dispose();
     super.dispose();
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }

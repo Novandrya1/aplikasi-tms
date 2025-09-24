@@ -4,6 +4,8 @@ import '../services/ocr_service.dart';
 import '../services/file_upload_service.dart';
 
 class OCRDemoScreen extends StatefulWidget {
+  const OCRDemoScreen({super.key});
+  
   @override
   _OCRDemoScreenState createState() => _OCRDemoScreenState();
 }
