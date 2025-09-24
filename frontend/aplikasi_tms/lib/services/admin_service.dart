@@ -27,7 +27,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/dashboard'),
+      Uri.parse('$baseUrl/api/v1/admin/dashboard'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -45,7 +45,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/vehicles/pending'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/pending'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -63,7 +63,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/vehicles'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -81,7 +81,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -99,7 +99,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.put(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/verify'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/verify'),
       headers: ApiConfig.authHeaders(token),
       body: jsonEncode({
         'status': status,
@@ -118,7 +118,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/vehicles/$vehicleId/attachments'),
+      Uri.parse('$baseUrl/api/v1/vehicles/$vehicleId/attachments'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -136,7 +136,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/history'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/history'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -155,7 +155,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/verification-dashboard'),
+      Uri.parse('$baseUrl/api/v1/admin/verification-dashboard'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -173,7 +173,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/admin/vehicles/status/$status'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/status/$status'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -191,7 +191,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.put(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/correction'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/correction'),
       headers: ApiConfig.authHeaders(token),
       body: jsonEncode({
         'correction_items': correctionItems,
@@ -210,7 +210,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.post(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/cross-check'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/cross-check'),
       headers: ApiConfig.authHeaders(token),
       body: jsonEncode({
         'check_type': checkType,
@@ -231,7 +231,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.post(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/schedule-inspection'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/schedule-inspection'),
       headers: ApiConfig.authHeaders(token),
       body: jsonEncode({
         'inspection_date': inspectionDate.toIso8601String(),
@@ -270,7 +270,7 @@ class AdminService {
     }
 
     final response = await http.put(
-      Uri.parse('$baseUrl/admin/vehicles/$vehicleId/verify'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/verify'),
       headers: ApiConfig.authHeaders(token),
       body: jsonEncode(body),
     );

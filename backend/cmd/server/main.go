@@ -157,6 +157,8 @@ func main() {
 		api.POST("/admin/vehicles/:id/cross-check", middleware.AuthRequired(), middleware.AdminRequired(), performCrossCheckHandler)
 		api.POST("/admin/vehicles/:id/schedule-inspection", middleware.AuthRequired(), middleware.AdminRequired(), scheduleInspectionHandler)
 		api.GET("/admin/vehicles/:id/history", middleware.AuthRequired(), middleware.AdminRequired(), getVehicleVerificationHistoryHandler)
+		api.GET("/admin/documents", middleware.AuthRequired(), middleware.AdminRequired(), getUploadedDocumentsHandler)
+		api.PUT("/admin/documents/:id/verify", middleware.AuthRequired(), middleware.AdminRequired(), verifyDocumentHandler)
 		
 		// Enhanced dashboard endpoints
 		api.GET("/notifications", middleware.AuthRequired(), getNotificationsHandler)
@@ -169,6 +171,9 @@ func main() {
 		api.POST("/ocr/ktp", middleware.AuthRequired(), extractKTPHandler)
 		api.POST("/ocr/face-match", middleware.AuthRequired(), faceMatchHandler)
 		api.POST("/ocr/validate-quality", middleware.AuthRequired(), validateQualityHandler)
+		
+		// Document upload endpoints
+		api.POST("/documents/upload", middleware.AuthRequired(), uploadDocumentDirectHandler)
 		
 		// Driver mobile app endpoints
 		api.GET("/driver/profile", middleware.AuthRequired(), getDriverProfileHandler)
@@ -820,11 +825,60 @@ func getPendingVehiclesHandler(c *gin.Context) {
 		return
 	}
 
-	vehicles, err := services.GetPendingVehicles(conn)
+	// Simple implementation to get pending vehicles
+	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
+					 v.chassis_number, v.engine_number, v.color, v.capacity_weight,
+					 v.ownership_status, v.verification_status, v.created_at, v.created_by,
+					 u.username, u.email, u.full_name
+			  FROM vehicles v
+			  JOIN users u ON v.created_by = u.id
+			  WHERE v.verification_status = 'pending' OR v.verification_status = 'submitted'
+			  ORDER BY v.created_at DESC`
+
+	rows, err := conn.Query(query)
 	if err != nil {
-		log.Printf("Get pending vehicles error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		log.Printf("Query pending vehicles error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pending vehicles"})
 		return
+	}
+	defer rows.Close()
+
+	var vehicles []map[string]interface{}
+	for rows.Next() {
+		var vehicle map[string]interface{} = make(map[string]interface{})
+		var id, createdBy, year int
+		var registrationNumber, vehicleType, brand, model, chassisNumber, engineNumber, color, ownershipStatus, verificationStatus, username, email, fullName string
+		var capacityWeight float64
+		var createdAt time.Time
+
+		err := rows.Scan(&id, &registrationNumber, &vehicleType, &brand, &model, &year,
+			&chassisNumber, &engineNumber, &color, &capacityWeight,
+			&ownershipStatus, &verificationStatus, &createdAt, &createdBy,
+			&username, &email, &fullName)
+		if err != nil {
+			continue
+		}
+
+		vehicle["id"] = id
+		vehicle["registration_number"] = registrationNumber
+		vehicle["vehicle_type"] = vehicleType
+		vehicle["brand"] = brand
+		vehicle["model"] = model
+		vehicle["year"] = year
+		vehicle["chassis_number"] = chassisNumber
+		vehicle["engine_number"] = engineNumber
+		vehicle["color"] = color
+		vehicle["capacity_weight"] = capacityWeight
+		vehicle["ownership_status"] = ownershipStatus
+		vehicle["verification_status"] = verificationStatus
+		vehicle["created_at"] = createdAt
+		vehicle["created_by"] = createdBy
+		vehicle["owner_name"] = fullName
+		vehicle["owner_email"] = email
+		vehicle["username"] = username
+		vehicle["days_waiting"] = int(time.Since(createdAt).Hours() / 24)
+
+		vehicles = append(vehicles, vehicle)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
@@ -855,6 +909,8 @@ func getVehicleDetailsAdminHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid vehicle ID"})
 		return
 	}
+
+	log.Printf("DEBUG: Getting vehicle details for ID: %d", vehicleID)
 
 	conn, err := db.Connect()
 	if err != nil {
@@ -1372,7 +1428,8 @@ func getFleetProfileHandler(c *gin.Context) {
 }
 
 func registerFleetVehicleHandler(c *gin.Context) {
-	var req models.VehicleRegistrationRequest
+	// Accept any JSON structure for vehicle registration
+	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
@@ -1397,21 +1454,92 @@ func registerFleetVehicleHandler(c *gin.Context) {
 		return
 	}
 	
-	// Get fleet owner ID
-	fleetOwner, err := services.GetFleetOwnerByUserID(conn, userIDInt)
+	// Simple vehicle registration - insert directly to vehicles table
+	query := `INSERT INTO vehicles (
+		registration_number, vehicle_type, brand, model, year, 
+		chassis_number, engine_number, color, capacity_weight,
+		ownership_status, created_by, verification_status
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending') 
+	RETURNING id, created_at`
+	
+	var vehicleID int
+	var createdAt time.Time
+	
+	// Extract data from request with defaults
+	registrationNumber := getStringValue(req, "registration_number")
+	vehicleType := getStringValue(req, "vehicle_type")
+	brand := getStringValue(req, "brand")
+	model := getStringValue(req, "model")
+	year := getIntValue(req, "year", 2020)
+	chassisNumber := getStringValue(req, "chassis_number")
+	engineNumber := getStringValue(req, "engine_number")
+	color := getStringValue(req, "color")
+	capacityWeight := getFloatValue(req, "capacity_weight", 0.0)
+	ownershipStatus := getStringValue(req, "ownership_status")
+	
+	err = conn.QueryRow(query, 
+		registrationNumber, vehicleType, brand, model, year,
+		chassisNumber, engineNumber, color, capacityWeight,
+		ownershipStatus, userIDInt,
+	).Scan(&vehicleID, &createdAt)
+	
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "You must register as fleet owner first"})
+		log.Printf("Insert vehicle error: %v", err)
+		if strings.Contains(err.Error(), "duplicate") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Vehicle with this registration number or chassis number already exists"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register vehicle"})
+		}
 		return
 	}
 	
-	vehicle, err := services.RegisterVehicleForFleet(conn, req, fleetOwner.ID)
-	if err != nil {
-		log.Printf("Register fleet vehicle error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	// Return success response
+	vehicle := map[string]interface{}{
+		"id": vehicleID,
+		"registration_number": registrationNumber,
+		"vehicle_type": vehicleType,
+		"brand": brand,
+		"model": model,
+		"year": year,
+		"verification_status": "pending",
+		"created_at": createdAt,
 	}
 	
 	c.JSON(http.StatusCreated, gin.H{"vehicle": vehicle})
+}
+
+// Helper functions for extracting values from map
+func getStringValue(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+func getIntValue(m map[string]interface{}, key string, defaultVal int) int {
+	if val, ok := m[key]; ok {
+		if num, ok := val.(float64); ok {
+			return int(num)
+		}
+		if num, ok := val.(int); ok {
+			return num
+		}
+	}
+	return defaultVal
+}
+
+func getFloatValue(m map[string]interface{}, key string, defaultVal float64) float64 {
+	if val, ok := m[key]; ok {
+		if num, ok := val.(float64); ok {
+			return num
+		}
+		if num, ok := val.(int); ok {
+			return float64(num)
+		}
+	}
+	return defaultVal
 }
 
 func getFleetVehiclesHandler(c *gin.Context) {
@@ -1541,12 +1669,40 @@ func getAdminVerificationDashboardHandler(c *gin.Context) {
 		return
 	}
 
-	dashboard, err := services.GetAdminVerificationDashboard(conn)
-	if err != nil {
-		log.Printf("Get verification dashboard error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get verification dashboard"})
-		return
+	// Simple implementation for verification dashboard
+	dashboard := map[string]interface{}{
+		"pending_count": 0,
+		"needs_correction_count": 0,
+		"under_review_count": 0,
+		"approved_today": 0,
+		"rejected_today": 0,
+		"urgent_items": []map[string]interface{}{},
+		"recent_submissions": []map[string]interface{}{},
 	}
+
+	// Get basic counts from database
+	var pendingCount, needsCorrectionCount, underReviewCount, approvedToday, rejectedToday int
+	
+	// Count pending vehicles
+	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'pending' OR verification_status = 'submitted'").Scan(&pendingCount)
+	
+	// Count needs correction
+	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'needs_correction'").Scan(&needsCorrectionCount)
+	
+	// Count under review
+	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'under_review'").Scan(&underReviewCount)
+	
+	// Count approved today
+	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'approved' AND DATE(updated_at) = CURRENT_DATE").Scan(&approvedToday)
+	
+	// Count rejected today
+	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'rejected' AND DATE(updated_at) = CURRENT_DATE").Scan(&rejectedToday)
+	
+	dashboard["pending_count"] = pendingCount
+	dashboard["needs_correction_count"] = needsCorrectionCount
+	dashboard["under_review_count"] = underReviewCount
+	dashboard["approved_today"] = approvedToday
+	dashboard["rejected_today"] = rejectedToday
 
 	c.JSON(http.StatusOK, gin.H{"dashboard": dashboard})
 }
@@ -1575,11 +1731,60 @@ func getVehiclesByStatusHandler(c *gin.Context) {
 		return
 	}
 
-	vehicles, err := services.GetVehiclesByStatus(conn, status)
+	// Simple implementation to get vehicles by status
+	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
+					 v.chassis_number, v.engine_number, v.color, v.capacity_weight,
+					 v.ownership_status, v.verification_status, v.created_at, v.created_by,
+					 u.username, u.email, u.full_name
+			  FROM vehicles v
+			  JOIN users u ON v.created_by = u.id
+			  WHERE v.verification_status = $1
+			  ORDER BY v.created_at DESC`
+
+	rows, err := conn.Query(query, status)
 	if err != nil {
-		log.Printf("Get vehicles by status error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
+		log.Printf("Query vehicles by status error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get vehicles"})
 		return
+	}
+	defer rows.Close()
+
+	var vehicles []map[string]interface{}
+	for rows.Next() {
+		var vehicle map[string]interface{} = make(map[string]interface{})
+		var id, createdBy, year int
+		var registrationNumber, vehicleType, brand, model, chassisNumber, engineNumber, color, ownershipStatus, verificationStatus, username, email, fullName string
+		var capacityWeight float64
+		var createdAt time.Time
+
+		err := rows.Scan(&id, &registrationNumber, &vehicleType, &brand, &model, &year,
+			&chassisNumber, &engineNumber, &color, &capacityWeight,
+			&ownershipStatus, &verificationStatus, &createdAt, &createdBy,
+			&username, &email, &fullName)
+		if err != nil {
+			continue
+		}
+
+		vehicle["id"] = id
+		vehicle["registration_number"] = registrationNumber
+		vehicle["vehicle_type"] = vehicleType
+		vehicle["brand"] = brand
+		vehicle["model"] = model
+		vehicle["year"] = year
+		vehicle["chassis_number"] = chassisNumber
+		vehicle["engine_number"] = engineNumber
+		vehicle["color"] = color
+		vehicle["capacity_weight"] = capacityWeight
+		vehicle["ownership_status"] = ownershipStatus
+		vehicle["verification_status"] = verificationStatus
+		vehicle["created_at"] = createdAt
+		vehicle["created_by"] = createdBy
+		vehicle["owner_name"] = fullName
+		vehicle["owner_email"] = email
+		vehicle["username"] = username
+		vehicle["days_waiting"] = int(time.Since(createdAt).Hours() / 24)
+
+		vehicles = append(vehicles, vehicle)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles, "status": status, "count": len(vehicles)})
@@ -1871,4 +2076,158 @@ func validateQualityHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+func uploadDocumentDirectHandler(c *gin.Context) {
+	var req struct {
+		DocumentType string `json:"document_type" binding:"required"`
+		FileName     string `json:"file_name" binding:"required"`
+		FileSize     int    `json:"file_size"`
+		MimeType     string `json:"mime_type"`
+		Data         string `json:"data" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	userIDInt, ok := userID.(int)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	// Save file to uploads directory
+	os.MkdirAll("./uploads", 0755)
+	filePath := fmt.Sprintf("./uploads/%s", req.FileName)
+	file, err := os.Create(filePath)
+	if err == nil {
+		file.WriteString(req.Data)
+		file.Close()
+	}
+
+	// Save document record to database
+	query := `INSERT INTO user_documents (user_id, document_type, file_name, file_path, file_size, mime_type, upload_status, created_at) 
+			  VALUES ($1, $2, $3, $4, $5, $6, 'uploaded', NOW()) RETURNING id, created_at`
+
+	var docID int
+	var createdAt time.Time
+	err = conn.QueryRow(query, userIDInt, req.DocumentType, req.FileName, filePath, req.FileSize, req.MimeType).
+		Scan(&docID, &createdAt)
+
+	if err != nil {
+		log.Printf("Insert document error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save document"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"id": docID,
+		"file_path": filePath,
+		"file_name": req.FileName,
+		"document_type": req.DocumentType,
+		"upload_status": "uploaded",
+		"created_at": createdAt,
+	})
+}
+
+func getUploadedDocumentsHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	query := `SELECT d.id, d.user_id, d.document_type, d.file_name, d.file_path, 
+					 d.verification_status, d.created_at, u.username, u.email
+			  FROM user_documents d 
+			  JOIN users u ON d.user_id = u.id 
+			  WHERE d.verification_status = 'pending'
+			  ORDER BY d.created_at DESC`
+
+	rows, err := conn.Query(query)
+	if err != nil {
+		log.Printf("Query documents error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get documents"})
+		return
+	}
+	defer rows.Close()
+
+	var documents []map[string]interface{}
+	for rows.Next() {
+		var doc map[string]interface{} = make(map[string]interface{})
+		var id, userID int
+		var docType, fileName, filePath, status, username, email string
+		var createdAt time.Time
+
+		err := rows.Scan(&id, &userID, &docType, &fileName, &filePath, &status, &createdAt, &username, &email)
+		if err != nil {
+			continue
+		}
+
+		doc["id"] = id
+		doc["user_id"] = userID
+		doc["document_type"] = docType
+		doc["file_name"] = fileName
+		doc["file_path"] = filePath
+		doc["verification_status"] = status
+		doc["created_at"] = createdAt
+		doc["username"] = username
+		doc["email"] = email
+
+		documents = append(documents, doc)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"documents": documents})
+}
+
+func verifyDocumentHandler(c *gin.Context) {
+	docIDStr := c.Param("id")
+	docID, err := strconv.Atoi(docIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
+		return
+	}
+
+	var req struct {
+		Status string `json:"status" binding:"required"`
+		Notes  string `json:"notes"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	query := `UPDATE user_documents SET verification_status = $1, verification_notes = $2, updated_at = NOW() WHERE id = $3`
+	_, err = conn.Exec(query, req.Status, req.Notes, docID)
+	if err != nil {
+		log.Printf("Update document error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Document verification updated"})
 }

@@ -19,9 +19,8 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-			  LEFT JOIN users u ON fo.user_id = u.id
+			  LEFT JOIN users u ON COALESCE(fo.user_id, v.created_by) = u.id
 			  WHERE (v.verification_status IN ('pending', 'submitted') OR v.verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review'))
-			  AND v.fleet_owner_id IS NOT NULL
 			  ORDER BY v.created_at ASC`
 
 	rows, err := db.Query(query)
@@ -76,11 +75,13 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 
 func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
-			  v.verification_status, v.operational_status, v.created_at, v.verified_at, v.admin_notes,
-			  fo.company_name, u.full_name, u.email
+			  v.verification_status, v.operational_status, v.created_at, v.verified_at, v.verification_notes,
+			  COALESCE(fo.company_name, '') as company_name, 
+			  COALESCE(u.full_name, '') as full_name, 
+			  COALESCE(u.email, '') as email
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-			  LEFT JOIN users u ON fo.user_id = u.id
+			  LEFT JOIN users u ON COALESCE(fo.user_id, v.created_by) = u.id
 			  ORDER BY v.created_at DESC`
 
 	rows, err := db.Query(query)
@@ -96,11 +97,11 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 		var regNumber, vehicleType, brand, model, verificationStatus, operationalStatus string
 		var createdAt string
 		var verifiedAt sql.NullString
-		var adminNotes sql.NullString
-		var companyName, fullName, email sql.NullString
+		var verificationNotes sql.NullString
+		var companyName, fullName, email string
 
 		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
-			&verificationStatus, &operationalStatus, &createdAt, &verifiedAt, &adminNotes,
+			&verificationStatus, &operationalStatus, &createdAt, &verifiedAt, &verificationNotes,
 			&companyName, &fullName, &email)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan vehicle: %s", strings.ReplaceAll(err.Error(), "\n", " "))
@@ -118,25 +119,13 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 		if verifiedAt.Valid {
 			v["verified_at"] = verifiedAt.String
 		}
-		if adminNotes.Valid {
-			v["admin_notes"] = adminNotes.String
+		if verificationNotes.Valid {
+			v["verification_notes"] = verificationNotes.String
 		}
 		
-		if companyName.Valid {
-			v["company_name"] = companyName.String
-		} else {
-			v["company_name"] = ""
-		}
-		if fullName.Valid {
-			v["owner_name"] = fullName.String
-		} else {
-			v["owner_name"] = ""
-		}
-		if email.Valid {
-			v["owner_email"] = email.String
-		} else {
-			v["owner_email"] = ""
-		}
+		v["company_name"] = companyName
+		v["owner_name"] = fullName
+		v["owner_email"] = email
 
 		vehicles = append(vehicles, v)
 	}
@@ -295,64 +284,57 @@ func GetAdminDashboardStats(db *sql.DB) (map[string]interface{}, error) {
 }
 
 func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{}, error) {
-	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
-			  v.chassis_number, v.engine_number, v.color, v.capacity_weight, v.capacity_volume,
-			  v.ownership_status, v.operational_status, v.verification_status, v.verification_substatus,
-			  v.insurance_company, v.insurance_policy_number, v.insurance_expiry_date,
-			  v.last_maintenance_date, v.next_maintenance_date, v.maintenance_notes,
-			  v.created_at, v.updated_at, v.verification_notes,
-			  COALESCE(fo.company_name, '') as company_name, 
-			  COALESCE(fo.business_license, '') as business_license, 
-			  COALESCE(fo.address, '') as address, 
-			  COALESCE(fo.phone, '') as phone,
-			  COALESCE(fo.email, '') as owner_email_fo,
-			  COALESCE(fo.owner_name, '') as owner_name_fo,
-			  COALESCE(fo.ktp_number, '') as ktp_number,
-			  COALESCE(fo.npwp, '') as npwp,
-			  COALESCE(u.full_name, '') as full_name, 
-			  COALESCE(u.email, '') as email, 
-			  COALESCE(u.username, '') as username,
-			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
-			  FROM vehicles v
-			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-			  LEFT JOIN users u ON fo.user_id = u.id
-			  WHERE v.id = $1`
+	// Simple query that works - get vehicle data and user data separately
+	vehicleQuery := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
+					 v.chassis_number, v.engine_number, v.color, 
+					 COALESCE(v.capacity_weight, 0) as capacity_weight,
+					 COALESCE(v.ownership_status, '') as ownership_status,
+					 COALESCE(v.operational_status, 'active') as operational_status,
+					 COALESCE(v.verification_status, 'pending') as verification_status,
+					 COALESCE(v.verification_substatus, 'initial') as verification_substatus,
+					 v.created_at, v.updated_at, v.created_by,
+					 EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
+					 FROM vehicles v WHERE v.id = $1`
+	
+	userQuery := `SELECT u.full_name, u.email, u.username FROM users u WHERE u.id = $1`
 
 	var vehicle map[string]interface{} = make(map[string]interface{})
 	
-	row := db.QueryRow(query, vehicleID)
+	// Get vehicle data first
+	row := db.QueryRow(vehicleQuery, vehicleID)
 	
-	var id, year, daysWaiting int
+	var id, year, daysWaiting, createdBy int
+	var capacityWeight float64
 	var regNumber, vehicleType, brand, model, chassisNumber, engineNumber, color string
-	var capacityWeight, capacityVolume sql.NullFloat64
 	var ownershipStatus, operationalStatus, verificationStatus, verificationSubstatus string
-	var insuranceCompany, insurancePolicyNumber sql.NullString
-	var insuranceExpiryDate, lastMaintenanceDate, nextMaintenanceDate sql.NullTime
-	var maintenanceNotes, verificationNotes sql.NullString
 	var createdAt, updatedAt string
-	var companyName, businessLicense, address, phone, ownerEmailFo, ownerNameFo, ktpNumber, npwp string
-	var fullName, email, username string
 
 	err := row.Scan(
 		&id, &regNumber, &vehicleType, &brand, &model, &year,
-		&chassisNumber, &engineNumber, &color, &capacityWeight, &capacityVolume,
+		&chassisNumber, &engineNumber, &color, &capacityWeight,
 		&ownershipStatus, &operationalStatus, &verificationStatus, &verificationSubstatus,
-		&insuranceCompany, &insurancePolicyNumber, &insuranceExpiryDate,
-		&lastMaintenanceDate, &nextMaintenanceDate, &maintenanceNotes,
-		&createdAt, &updatedAt, &verificationNotes,
-		&companyName, &businessLicense, &address, &phone,
-		&ownerEmailFo, &ownerNameFo, &ktpNumber, &npwp,
-		&fullName, &email, &username, &daysWaiting,
+		&createdAt, &updatedAt, &createdBy, &daysWaiting,
 	)
-
+	
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("vehicle not found")
 		}
-		return nil, fmt.Errorf("failed to get vehicle details: %v", err)
+		return nil, fmt.Errorf("failed to get vehicle: %v", err)
 	}
-
-	// Map all fields
+	
+	// Get user data separately
+	var fullName, email, username string
+	userRow := db.QueryRow(userQuery, createdBy)
+	err = userRow.Scan(&fullName, &email, &username)
+	if err != nil {
+		// If user not found, use empty values
+		fullName = "Unknown User"
+		email = "unknown@example.com"
+		username = "unknown"
+	}
+	
+	// Map all vehicle fields
 	vehicle["id"] = id
 	vehicle["registration_number"] = regNumber
 	vehicle["vehicle_type"] = vehicleType
@@ -362,64 +344,81 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	vehicle["chassis_number"] = chassisNumber
 	vehicle["engine_number"] = engineNumber
 	vehicle["color"] = color
-	
-	if capacityWeight.Valid {
-		vehicle["capacity_weight"] = capacityWeight.Float64
-	}
-	if capacityVolume.Valid {
-		vehicle["capacity_volume"] = capacityVolume.Float64
-	}
-	
+	vehicle["capacity_weight"] = capacityWeight
+	vehicle["capacity_volume"] = 0.0 // Default value
 	vehicle["ownership_status"] = ownershipStatus
 	vehicle["operational_status"] = operationalStatus
 	vehicle["verification_status"] = verificationStatus
 	vehicle["verification_substatus"] = verificationSubstatus
-	
-	if insuranceCompany.Valid {
-		vehicle["insurance_company"] = insuranceCompany.String
-	}
-	if insurancePolicyNumber.Valid {
-		vehicle["insurance_policy_number"] = insurancePolicyNumber.String
-	}
-	if maintenanceNotes.Valid {
-		vehicle["maintenance_notes"] = maintenanceNotes.String
-	}
-	if verificationNotes.Valid {
-		vehicle["verification_notes"] = verificationNotes.String
-	}
-	
 	vehicle["created_at"] = createdAt
 	vehicle["updated_at"] = updatedAt
 	vehicle["days_waiting"] = daysWaiting
 	
-	// Fleet owner info - prioritize fleet_owners table data
-	vehicle["company_name"] = companyName
-	vehicle["business_license"] = businessLicense
-	vehicle["owner_address"] = address
-	vehicle["owner_phone"] = phone
-	vehicle["ktp_number"] = ktpNumber
-	vehicle["npwp"] = npwp
-	
-	// Use fleet owner data if available, otherwise use user data
-	if ownerNameFo != "" {
-		vehicle["owner_name"] = ownerNameFo
-	} else {
-		vehicle["owner_name"] = fullName
-	}
-	
-	if ownerEmailFo != "" {
-		vehicle["owner_email"] = ownerEmailFo
-	} else {
-		vehicle["owner_email"] = email
-	}
-	
+	// Owner information from users table
+	vehicle["owner_name"] = fullName
+	vehicle["owner_email"] = email
 	vehicle["owner_username"] = username
+	vehicle["owner_type"] = "individual" // Default to individual
 	
-	// Determine owner type
-	if companyName != "" {
-		vehicle["owner_type"] = "company"
+	// Default empty values for fleet owner fields
+	vehicle["company_name"] = ""
+	vehicle["business_license"] = ""
+	vehicle["owner_address"] = ""
+	vehicle["owner_phone"] = ""
+	vehicle["ktp_number"] = ""
+	vehicle["npwp"] = ""
+	vehicle["insurance_company"] = ""
+	vehicle["insurance_policy_number"] = ""
+	vehicle["maintenance_notes"] = ""
+	vehicle["verification_notes"] = ""
+	
+	// Get user documents for this vehicle owner
+	log.Printf("DEBUG: Getting documents for user_id: %d", createdBy)
+	documentsQuery := `SELECT id, document_type, file_name, file_path, file_size, mime_type, 
+					   upload_status, verification_status, created_at
+					   FROM user_documents WHERE user_id = $1 ORDER BY created_at DESC`
+	
+	docRows, err := db.Query(documentsQuery, createdBy)
+	if err == nil {
+		defer docRows.Close()
+		var documents []map[string]interface{}
+		
+		for docRows.Next() {
+			var doc map[string]interface{} = make(map[string]interface{})
+			var id int
+			var docType, fileName, filePath, uploadStatus, verificationStatus string
+			var fileSize int64
+			var mimeType, createdAt string
+			
+			err := docRows.Scan(&id, &docType, &fileName, &filePath, &fileSize, &mimeType, 
+				&uploadStatus, &verificationStatus, &createdAt)
+			if err == nil {
+				doc["id"] = id
+				doc["attachment_type"] = docType
+				doc["file_name"] = fileName
+				doc["file_path"] = filePath
+				doc["file_size"] = fileSize
+				doc["mime_type"] = mimeType
+				doc["upload_status"] = uploadStatus
+				doc["verification_status"] = verificationStatus
+				doc["uploaded_at"] = createdAt
+				documents = append(documents, doc)
+			}
+		}
+		vehicle["documents"] = documents
+		log.Printf("DEBUG: Found %d documents for user %d", len(documents), createdBy)
 	} else {
-		vehicle["owner_type"] = "individual"
+		vehicle["documents"] = []map[string]interface{}{}
+		log.Printf("DEBUG: Error getting documents: %v", err)
+	}
+	
+	// Debug log final owner data
+	if docs, ok := vehicle["documents"].([]map[string]interface{}); ok {
+		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=%d", 
+			vehicleID, vehicle["owner_name"], vehicle["owner_email"], vehicle["owner_username"], len(docs))
+	} else {
+		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=null", 
+			vehicleID, vehicle["owner_name"], vehicle["owner_email"], vehicle["owner_username"])
 	}
 
 	return vehicle, nil
@@ -543,11 +542,11 @@ func GetVehiclesByStatus(db *sql.DB, status string) ([]map[string]interface{}, e
 			  COALESCE(fo.company_name, '') as company_name, 
 			  COALESCE(u.full_name, '') as full_name, 
 			  COALESCE(u.email, '') as email,
-			  CASE WHEN fo.company_name IS NOT NULL THEN 'company' ELSE 'individual' END as owner_type,
+			  CASE WHEN fo.company_name IS NOT NULL AND fo.company_name != '' THEN 'company' ELSE 'individual' END as owner_type,
 			  EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 			  FROM vehicles v
 			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-			  LEFT JOIN users u ON fo.user_id = u.id
+			  LEFT JOIN users u ON COALESCE(fo.user_id, v.created_by) = u.id
 			  WHERE v.verification_status = $1 OR v.verification_substatus = $1
 			  ORDER BY v.created_at DESC`
 
@@ -609,7 +608,7 @@ func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
 	// Get counts by status
 	
 	statusQuery := `SELECT 
-		COUNT(CASE WHEN (verification_status IN ('pending', 'submitted') OR verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review')) AND fleet_owner_id IS NOT NULL THEN 1 END) as pending_count,
+		COUNT(CASE WHEN (verification_status IN ('pending', 'submitted') OR verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review')) THEN 1 END) as pending_count,
 		COUNT(CASE WHEN verification_substatus = 'needs_correction' THEN 1 END) as needs_correction_count,
 		COUNT(CASE WHEN verification_substatus = 'under_review' THEN 1 END) as under_review_count,
 		COUNT(CASE WHEN verification_status = 'approved' AND DATE(verified_at) = CURRENT_DATE THEN 1 END) as approved_today,
@@ -636,7 +635,7 @@ func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
 		EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 		FROM vehicles v
 		LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-		LEFT JOIN users u ON fo.user_id = u.id
+		LEFT JOIN users u ON COALESCE(fo.user_id, v.created_by) = u.id
 		WHERE v.verification_status IN ('pending', 'submitted', 'needs_correction', 'under_review')
 		ORDER BY v.created_at DESC LIMIT 10`
 
@@ -930,6 +929,7 @@ func ScheduleInspection(db *sql.DB, vehicleID int, inspectionDate time.Time, loc
 }
 
 func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{}, error) {
+	// First get vehicle attachments from vehicle_attachments table
 	query := `SELECT id, vehicle_id, attachment_type, file_name, file_path, 
 			  file_size, mime_type, uploaded_at
 			  FROM vehicle_attachments 
@@ -973,6 +973,39 @@ func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{},
 		attachment["uploaded_at"] = uploadedAt
 
 		attachments = append(attachments, attachment)
+	}
+
+	// Also get user documents for this vehicle's owner
+	var createdBy int
+	err = db.QueryRow("SELECT created_by FROM vehicles WHERE id = $1", vehicleID).Scan(&createdBy)
+	if err == nil {
+		userDocsQuery := `SELECT id, document_type, file_name, file_path, file_size, mime_type, created_at
+					   FROM user_documents WHERE user_id = $1 ORDER BY created_at DESC`
+		
+		userRows, err := db.Query(userDocsQuery, createdBy)
+		if err == nil {
+			defer userRows.Close()
+			
+			for userRows.Next() {
+				var attachment map[string]interface{} = make(map[string]interface{})
+				var id int
+				var docType, fileName, filePath, mimeType, createdAt string
+				var fileSize int64
+				
+				err := userRows.Scan(&id, &docType, &fileName, &filePath, &fileSize, &mimeType, &createdAt)
+				if err == nil {
+					attachment["id"] = id
+					attachment["vehicle_id"] = vehicleID
+					attachment["attachment_type"] = docType
+					attachment["file_name"] = fileName
+					attachment["file_path"] = filePath
+					attachment["file_size"] = fileSize
+					attachment["mime_type"] = mimeType
+					attachment["uploaded_at"] = createdAt
+					attachments = append(attachments, attachment)
+				}
+			}
+		}
 	}
 
 	return attachments, nil

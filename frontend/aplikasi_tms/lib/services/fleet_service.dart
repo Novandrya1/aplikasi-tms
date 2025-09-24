@@ -26,7 +26,7 @@ class FleetService {
       print('Request body: ${jsonEncode(request.toJson())}');
       
       final response = await http.post(
-        Uri.parse('$baseUrl/fleet/register'),
+        Uri.parse('$baseUrl/api/v1/fleet/register'),
         headers: headers,
         body: jsonEncode(request.toJson()),
       );
@@ -50,7 +50,7 @@ class FleetService {
   static Future<FleetOwner?> getFleetProfile() async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/fleet/profile'),
+        Uri.parse('$baseUrl/api/v1/fleet/profile'),
         headers: await _getHeaders(),
       );
 
@@ -65,23 +65,32 @@ class FleetService {
   }
 
   static Future<Map<String, dynamic>> registerVehicle(dynamic vehicle) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/fleet/vehicles'),
-      headers: await _getHeaders(),
-      body: jsonEncode(vehicle is VehicleRegistration ? vehicle.toJson() : vehicle),
-    );
+    try {
+      print('Registering vehicle: ${jsonEncode(vehicle is VehicleRegistration ? vehicle.toJson() : vehicle)}');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/fleet/vehicles'),
+        headers: await _getHeaders(),
+        body: jsonEncode(vehicle is VehicleRegistration ? vehicle.toJson() : vehicle),
+      );
 
-    if (response.statusCode == 201) {
-      return json.decode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to register vehicle');
+      print('Vehicle registration response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode == 201) {
+        return json.decode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to register vehicle');
+      }
+    } catch (e) {
+      print('Vehicle registration error: $e');
+      rethrow;
     }
   }
 
   static Future<List<Map<String, dynamic>>> getFleetVehicles() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/fleet/vehicles'),
+      Uri.parse('$baseUrl/api/v1/fleet/vehicles'),
       headers: await _getHeaders(),
     );
 

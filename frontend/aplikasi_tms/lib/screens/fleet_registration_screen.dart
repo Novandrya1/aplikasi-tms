@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/fleet_models.dart';
 import '../services/fleet_service.dart';
 import '../services/file_upload_service.dart';
 import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class FleetRegistrationScreen extends StatefulWidget {
   @override
@@ -1206,11 +1209,12 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       final result = await FileUploadService.pickAndUploadFile(
         documentType: title.toLowerCase().replaceAll(' ', '_'),
         context: context,
-        vehicleId: 1, // Temporary vehicle ID for demo
+        vehicleId: 1,
         allowCamera: true,
       );
+      
       if (result != null) {
-        onFileSelected(result?['file_path'] ?? result.toString());
+        onFileSelected(result['file_name'] ?? 'uploaded_file');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Dokumen berhasil diupload: $title'),
@@ -1221,7 +1225,7 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error uploading file: ${e.toString()}'),
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1319,12 +1323,13 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
       final result = await FileUploadService.pickAndUploadFile(
         documentType: 'vehicle_photo',
         context: context,
-        vehicleId: 1, // Temporary vehicle ID for demo
+        vehicleId: 1,
         allowCamera: true,
       );
+      
       if (result != null) {
         setState(() {
-          _vehiclePhotos.add(result['file_path'] ?? result.toString());
+          _vehiclePhotos.add(result['file_name'] ?? 'vehicle_photo.jpg');
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1336,7 +1341,7 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error uploading photo: ${e.toString()}'),
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1353,174 +1358,121 @@ class _FleetRegistrationScreenState extends State<FleetRegistrationScreen> {
 
   Future<void> _submitRegistration() async {
     setState(() => _isLoading = true);
-
+    
     try {
-      // Validate required fields
-      if (_selectedType.isEmpty) {
-        throw Exception('Pilih jenis armada terlebih dahulu');
-      }
-      
-      if (_nameController.text.isEmpty || _emailController.text.isEmpty) {
-        throw Exception('Data pemilik belum lengkap');
-      }
-      
-      if (_plateController.text.isEmpty || _brandController.text.isEmpty) {
-        throw Exception('Data kendaraan belum lengkap');
-      }
-
-      // Validate required documents
-      if (!_canProceedToVerification()) {
-        throw Exception('Dokumen belum lengkap. Pastikan semua dokumen wajib sudah diupload.');
-      }
-
-      // Validate required fields based on type
-      if (_selectedType == 'company') {
-        if (_companyNameController.text.isEmpty || _businessLicenseController.text.isEmpty) {
-          throw Exception('Data perusahaan belum lengkap');
-        }
-      }
-
-      // Check if user is logged in
-      final token = await AuthService.getToken();
-      if (token == null) {
-        throw Exception('Anda harus login terlebih dahulu');
-      }
-
-      // Register fleet owner first
-      final fleetRequest = FleetOwnerRequest(
-        companyName: _selectedType == 'company' ? _companyNameController.text.trim() : _nameController.text.trim(),
-        businessLicense: _selectedType == 'company' ? _businessLicenseController.text.trim() : 'Individual',
-        address: _addressController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        email: _emailController.text.trim(),
-      );
-
-      print('Sending fleet registration: ${fleetRequest.toJson()}');
-      final fleetResult = await FleetService.registerFleetOwner(fleetRequest);
-      print('Fleet registration successful: $fleetResult');
-
-      // Register vehicle with complete data and documents
-      final vehicleRequest = {
-        'registration_number': _plateController.text.trim(),
-        'vehicle_type': _vehicleTypeController.text.trim(),
-        'brand': _brandController.text.trim(),
-        'model': _brandController.text.trim(),
-        'year': int.tryParse(_yearController.text) ?? 2020,
-        'chassis_number': _chassisController.text.trim(),
-        'engine_number': _engineController.text.trim(),
-        'color': _colorController.text.trim(),
-        'capacity_weight': double.tryParse(_capacityController.text) ?? 1000.0,
-        'capacity_volume': 10.0,
-        'ownership_status': 'owned',
-        'operational_status': 'pending_verification',
-        'verification_status': 'submitted',
-        'verification_substatus': 'awaiting_review',
-        // Include all uploaded documents
-        'documents': {
-          'owner_type': _selectedType,
-          'ktp_file': _ktpFile,
-          'selfie_file': _selfieFile,
-          'stnk_file': _stnkFile,
-          'bpkb_file': _bpkbFile,
-          'tax_file': _taxFile,
-          'insurance_file': _insuranceFile,
-          'business_license_file': _businessLicenseFile,
-          'npwp_file': _npwpFile,
-          'vehicle_photos': _vehiclePhotos,
-        },
-        // Include owner data for verification
-        'owner_data': {
-          'name': _nameController.text.trim(),
-          'ktp_number': _ktpController.text.trim(),
-          'address': _addressController.text.trim(),
-          'phone': _phoneController.text.trim(),
-          'email': _emailController.text.trim(),
-          'company_name': _selectedType == 'company' ? _companyNameController.text.trim() : null,
-          'npwp': _selectedType == 'company' ? _npwpController.text.trim() : null,
-          'business_license': _selectedType == 'company' ? _businessLicenseController.text.trim() : null,
-        },
+      // Prepare vehicle data
+      final vehicleData = {
+        'registration_number': _plateController.text,
+        'vehicle_type': _vehicleTypeController.text,
+        'brand': _brandController.text,
+        'model': _brandController.text.split(' ').length > 1 ? _brandController.text.split(' ').sublist(1).join(' ') : 'Standard',
+        'year': int.tryParse(_yearController.text) ?? DateTime.now().year,
+        'chassis_number': _chassisController.text,
+        'engine_number': _engineController.text,
+        'color': _colorController.text,
+        'capacity_weight': double.tryParse(_capacityController.text) ?? 0.0,
+        'ownership_status': _selectedType == 'individual' ? 'owned' : 'company',
+        'owner_name': _selectedType == 'individual' ? _nameController.text : _companyNameController.text,
+        'owner_phone': _phoneController.text,
+        'owner_email': _emailController.text,
+        'owner_address': _addressController.text,
+        'owner_type': _selectedType,
       };
-
-      print('Sending complete vehicle registration with documents: ${vehicleRequest.keys}');
-      final vehicleResult = await FleetService.registerVehicle(vehicleRequest);
-      print('Vehicle registration successful: $vehicleResult');
-
-      // Show success message with next steps
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
-              SizedBox(width: 8),
-              Text('Registrasi Berhasil!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Registrasi armada Anda telah berhasil dikirim dengan data lengkap:'),
-              SizedBox(height: 12),
-              Text('✅ Data pemilik/perusahaan'),
-              Text('✅ Data kendaraan lengkap'),
-              Text('✅ Semua dokumen pendukung'),
-              Text('✅ Foto kendaraan (${_vehiclePhotos.length} foto)'),
-              SizedBox(height: 12),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Proses Selanjutnya:',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800]),
-                    ),
-                    SizedBox(height: 4),
-                    Text('• Admin akan memeriksa semua dokumen', style: TextStyle(fontSize: 12)),
-                    Text('• Verifikasi data dan keaslian dokumen', style: TextStyle(fontSize: 12)),
-                    Text('• Notifikasi hasil dalam 1-3 hari kerja', style: TextStyle(fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                Navigator.of(context).pop(); // Close registration screen
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-              child: Text('Selesai'),
-            ),
-          ],
-        ),
+      
+      // Send to backend
+      final token = await AuthService.getToken();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/fleet/vehicles'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(vehicleData),
       );
-    } catch (e) {
-      print('Registration error: $e');
-      String errorMessage = e.toString();
-      if (errorMessage.contains('Exception:')) {
-        errorMessage = errorMessage.replaceFirst('Exception: ', '');
+      
+      setState(() => _isLoading = false);
+      
+      if (response.statusCode == 201) {
+        // Success - show success dialog
+        _showSuccessDialog();
+      } else {
+        // Error
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to register vehicle');
       }
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $errorMessage'),
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
-    } finally {
-      setState(() => _isLoading = false);
     }
+  }
+  
+  void _showSuccessDialog() {
+    // Show success dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 8),
+            Text('Registrasi Berhasil!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Registrasi armada Anda telah berhasil dikirim:'),
+            SizedBox(height: 12),
+            Text('✅ Data ${_selectedType == 'individual' ? 'pemilik' : 'perusahaan'}'),
+            Text('✅ Data kendaraan: ${_plateController.text}'),
+            Text('✅ Dokumen yang diupload'),
+            if (_vehiclePhotos.isNotEmpty) Text('✅ Foto kendaraan (${_vehiclePhotos.length} foto)'),
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Proses Selanjutnya:',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue[800]),
+                  ),
+                  SizedBox(height: 4),
+                  Text('• Admin akan memeriksa dokumen', style: TextStyle(fontSize: 12)),
+                  Text('• Verifikasi data kendaraan', style: TextStyle(fontSize: 12)),
+                  Text('• Notifikasi hasil dalam 1-3 hari kerja', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Selesai'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmExit() async {

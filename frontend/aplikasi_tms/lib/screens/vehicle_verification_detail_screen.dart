@@ -48,7 +48,20 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     setState(() => _isLoading = true);
     try {
       final vehicle = await AdminService.getVehicleDetails(widget.vehicleId);
-      final attachments = await _getVehicleAttachments(widget.vehicleId);
+      
+      // Use documents from vehicle details response if available
+      List<Map<String, dynamic>> attachments = [];
+      if (vehicle['documents'] != null) {
+        attachments = List<Map<String, dynamic>>.from(vehicle['documents']);
+      }
+      
+      // Also try to get vehicle attachments
+      try {
+        final vehicleAttachments = await _getVehicleAttachments(widget.vehicleId);
+        attachments.addAll(vehicleAttachments);
+      } catch (e) {
+        print('Could not load vehicle attachments: $e');
+      }
       
       setState(() {
         _vehicle = vehicle;

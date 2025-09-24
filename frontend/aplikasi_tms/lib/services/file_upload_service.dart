@@ -25,59 +25,45 @@ class FileUploadService {
     bool allowCamera = true,
   }) async {
     try {
-      // Show options dialog
+      // Show source selection dialog
       final source = await _showSourceDialog(context, allowCamera);
       if (source == null) return null;
-
+      
       Uint8List? fileBytes;
       String? fileName;
-
+      
       if (source == 'camera') {
-        final ImagePicker picker = ImagePicker();
-        final XFile? image = await picker.pickImage(
-          source: ImageSource.camera,
-          maxWidth: 1920,
-          maxHeight: 1080,
-          imageQuality: 85,
-        );
-        if (image != null) {
-          fileBytes = await image.readAsBytes();
-          fileName = '${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        }
+        final picker = ImagePicker();
+        final image = await picker.pickImage(source: ImageSource.camera);
+        if (image == null) return null;
+        
+        fileBytes = await image.readAsBytes();
+        fileName = image.name;
       } else if (source == 'gallery') {
-        final ImagePicker picker = ImagePicker();
-        final XFile? image = await picker.pickImage(
-          source: ImageSource.gallery,
-          maxWidth: 1920,
-          maxHeight: 1080,
-          imageQuality: 85,
-        );
-        if (image != null) {
-          fileBytes = await image.readAsBytes();
-          fileName = '${documentType}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        }
+        final picker = ImagePicker();
+        final image = await picker.pickImage(source: ImageSource.gallery);
+        if (image == null) return null;
+        
+        fileBytes = await image.readAsBytes();
+        fileName = image.name;
       } else {
         // File picker
         FilePickerResult? result = await FilePicker.platform.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+          type: FileType.image,
           allowMultiple: false,
+          withData: true,
         );
         
-        if (result != null) {
-          if (result.files.single.bytes != null) {
-            // Web platform
-            fileBytes = result.files.single.bytes!;
-            fileName = result.files.single.name;
-          } else if (result.files.single.path != null) {
-            // Mobile platform
-            fileBytes = await File(result.files.single.path!).readAsBytes();
-            fileName = result.files.single.name;
-          }
-        }
+        if (result == null || result.files.isEmpty) return null;
+        
+        final file = result.files.first;
+        if (file.bytes == null) throw Exception('No file data available');
+        
+        fileBytes = file.bytes!;
+        fileName = file.name;
       }
-
-      if (fileBytes == null || fileName == null) return null;
+      
+      print('File selected: $fileName, size: ${fileBytes.length}');
 
       // Upload to backend
       return await _uploadFileToBackend(
@@ -139,14 +125,14 @@ class FileUploadService {
       final headers = await _getHeaders();
       print('Upload headers: $headers');
       
-      final url = '$baseUrl/api/v1/vehicles/$vehicleId/attachments';
+      final url = '$baseUrl/api/v1/documents/upload';
       print('Upload URL: $url');
       
       // Convert image to base64 for JSON upload
       final base64Image = 'data:image/jpeg;base64,${base64Encode(fileBytes)}';
       
       final requestBody = {
-        'attachment_type': documentType,
+        'document_type': documentType,
         'file_name': fileName,
         'file_size': fileBytes.length,
         'mime_type': 'image/jpeg',
@@ -169,7 +155,7 @@ class FileUploadService {
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
-        return data['attachment'];
+        return data;
       } else {
         print('Upload failed: ${response.statusCode} - ${response.body}');
         return null;

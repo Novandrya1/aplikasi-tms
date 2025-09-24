@@ -5,6 +5,7 @@ import 'order_management_screen.dart';
 import 'admin_vehicles_screen.dart';
 import 'admin_verification_dashboard_screen.dart';
 import 'ocr_demo_screen.dart';
+import 'admin_document_verification_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -167,6 +168,11 @@ class AdminDashboardScreen extends StatelessWidget {
                 _buildAdminCard('OCR\nDemo', Icons.document_scanner, Colors.cyan, () {
                   Navigator.push(context, MaterialPageRoute(
                     builder: (context) => OCRDemoScreen(),
+                  ));
+                }),
+                _buildAdminCard('Verifikasi\nDokumen', Icons.description, Colors.red, () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => AdminDocumentVerificationScreen(),
                   ));
                 }),
               ],

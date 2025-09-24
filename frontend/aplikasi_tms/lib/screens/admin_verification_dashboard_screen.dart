@@ -20,8 +20,8 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
   void initState() {
     super.initState();
     _loadDashboardData();
-    // Auto refresh every 30 seconds
-    _refreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    // Auto refresh every 10 seconds for real-time updates
+    _refreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
       if (mounted) {
         _loadDashboardData();
       }
