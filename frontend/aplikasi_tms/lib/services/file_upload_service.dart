@@ -137,24 +137,35 @@ class FileUploadService {
   }) async {
     try {
       final headers = await _getHeaders();
+      print('Upload headers: $headers');
+      
+      final url = '$baseUrl/api/v1/vehicles/$vehicleId/attachments';
+      print('Upload URL: $url');
       
       // Convert image to base64 for JSON upload
       final base64Image = 'data:image/jpeg;base64,${base64Encode(fileBytes)}';
       
+      final requestBody = {
+        'attachment_type': documentType,
+        'file_name': fileName,
+        'file_size': fileBytes.length,
+        'mime_type': 'image/jpeg',
+        'data': base64Image,
+      };
+      
+      print('Request body keys: ${requestBody.keys}');
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/vehicles/$vehicleId/attachments'),
+        Uri.parse(url),
         headers: {
           ...headers,
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'attachment_type': documentType,
-          'file_name': fileName,
-          'file_size': fileBytes.length,
-          'mime_type': 'image/jpeg',
-          'data': base64Image,
-        }),
+        body: json.encode(requestBody),
       );
+
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);

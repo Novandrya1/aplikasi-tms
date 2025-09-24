@@ -8,25 +8,55 @@ class AuthService {
   static String get baseUrl => ApiConfig.baseUrl;
   
   static Future<LoginResponse> login(String email, String password) async {
-    final request = LoginRequest(email: email, password: password);
-    
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/login'),
-      headers: ApiConfig.headers,
-      body: jsonEncode(request.toJson()),
-    );
+    try {
+      final request = LoginRequest(email: email, password: password);
+      
+      final response = await http.post(
+        Uri.parse('${baseUrl}/api/v1/login'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(request.toJson()),
+      ).timeout(const Duration(seconds: 30));
 
-    if (response.statusCode == 200) {
-      final loginResponse = LoginResponse.fromJson(jsonDecode(response.body));
-      final prefs = await SharedPreferences.getInstance();
-      
-      await prefs.setString('token', loginResponse.token);
-      await prefs.setString('user', jsonEncode(loginResponse.user.toJson()));
-      
-      return loginResponse;
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Login failed');
+      print('Login response status: ${response.statusCode}');
+      print('Login response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        try {
+          final jsonData = jsonDecode(response.body);
+          final loginResponse = LoginResponse.fromJson(jsonData);
+          final prefs = await SharedPreferences.getInstance();
+          
+          await prefs.setString('token', loginResponse.token);
+          await prefs.setString('user', jsonEncode(loginResponse.user.toJson()));
+          
+          return loginResponse;
+        } catch (e) {
+          print('JSON decode error: $e');
+          throw Exception('Invalid response format from server');
+        }
+      } else {
+        try {
+          final error = jsonDecode(response.body);
+          throw Exception(error['error'] ?? 'Login failed');
+        } catch (e) {
+          throw Exception('Login failed with status ${response.statusCode}');
+        }
+      }
+    } on http.ClientException catch (e) {
+      print('Network error: $e');
+      throw Exception('Network error. Please check your connection.');
+    } on FormatException catch (e) {
+      print('Format error: $e');
+      throw Exception('Server response format error. Please check connection.');
+    } catch (e) {
+      print('Login error: $e');
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Connection timeout. Please try again.');
+      }
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 
@@ -43,7 +73,7 @@ class AuthService {
       // Validate token with backend
       try {
         final response = await http.get(
-          Uri.parse('$baseUrl/api/v1/ping'),
+          Uri.parse('${baseUrl}/api/v1/ping'),
           headers: authHeaders(token),
         ).timeout(const Duration(seconds: 10));
         
@@ -111,7 +141,7 @@ class AuthService {
     print('Register payload: ${jsonEncode(request.toJson())}');
     
     final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/register'),
+      Uri.parse('${baseUrl}/api/v1/register'),
       headers: ApiConfig.headers,
       body: jsonEncode(request.toJson()),
     );

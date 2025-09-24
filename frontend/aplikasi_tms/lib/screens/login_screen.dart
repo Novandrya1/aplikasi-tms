@@ -6,6 +6,7 @@ import 'driver_dashboard_screen.dart';
 import 'fleet_dashboard_screen.dart';
 import 'new_user_dashboard_screen.dart';
 import 'main_dashboard_screen.dart';
+import 'simple_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -245,44 +246,41 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
+        print('Starting login process...');
         final loginResponse = await AuthService.login(
           _usernameController.text,
           _passwordController.text,
         );
+        print('Login successful, user role: ${loginResponse.user.role}');
 
         // Role-based navigation
         final user = loginResponse.user;
-        Widget targetScreen;
+        print('User role: ${user.role}');
         
-        switch (user.role.toLowerCase()) {
-          case 'admin':
-            targetScreen = const AdminDashboardScreen();
-            break;
-          case 'driver':
-            targetScreen = DriverDashboardScreen();
-            break;
-          case 'fleet_owner':
-            targetScreen = FleetDashboardScreen();
-            break;
-          case 'user':
-          default:
-            // For development, always go to main dashboard
-            targetScreen = const MainDashboardScreen();
-            
-            // Uncomment below for production user check
-            /*
-            final isNew = await UserService.isNewUser();
-            targetScreen = isNew 
-                ? const NewUserDashboardScreen()
-                : const DashboardScreen();
-            */
+        print('About to navigate...');
+        if (mounted) {
+          // Use named routes for more reliable navigation
+          String routeName;
+          switch (user.role.toLowerCase()) {
+            case 'admin':
+              routeName = '/admin-dashboard';
+              break;
+            case 'driver':
+              routeName = '/driver-dashboard';
+              break;
+            case 'fleet_owner':
+              routeName = '/fleet-dashboard';
+              break;
+            case 'user':
+            default:
+              routeName = '/dashboard';
+              break;
+          }
+          Navigator.pushReplacementNamed(context, routeName);
+          print('Navigation completed to: $routeName');
         }
-        
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => targetScreen),
-        );
       } catch (e) {
+        print('Login error: $e');
         _showError(e.toString().replaceAll('Exception: ', ''));
       } finally {
         setState(() {
@@ -297,6 +295,15 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
       ),
     );
   }

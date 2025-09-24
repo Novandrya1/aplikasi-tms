@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  static const String _webBaseUrl = '/api/v1'; // Nginx proxy
-  static const String _mobileBaseUrl = 'http://10.0.2.2:8080/api/v1';
+  static const String _webBaseUrl = ''; // Use relative URLs for proxy
+  static const String _mobileBaseUrl = 'http://10.0.2.2:8080';
   
   static String get baseUrl {
     if (kIsWeb) {
