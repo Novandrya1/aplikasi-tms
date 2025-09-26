@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import '../config/api_config.dart';
 
 class DashboardService {
-  static const String baseUrl = 'http://localhost:8080/api/v1';
+  static String get baseUrl {
+    final apiBase = ApiConfig.baseUrl;
+    return apiBase.isEmpty ? '/api/v1' : '$apiBase/api/v1';
+  }
 
   static Future<List<Map<String, dynamic>>> getNotifications({int limit = 20}) async {
     final token = await AuthService.getToken();
@@ -11,10 +15,7 @@ class DashboardService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/notifications?limit=$limit'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Origin': 'http://localhost:3000',
-      },
+      headers: ApiConfig.authHeaders(token),
     );
 
     if (response.statusCode == 200) {
@@ -31,10 +32,7 @@ class DashboardService {
 
     final response = await http.put(
       Uri.parse('$baseUrl/notifications/$notificationId/read'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Origin': 'http://localhost:3000',
-      },
+      headers: ApiConfig.authHeaders(token),
     );
 
     if (response.statusCode != 200) {
@@ -48,10 +46,7 @@ class DashboardService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/fleet/tracking'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Origin': 'http://localhost:3000',
-      },
+      headers: ApiConfig.authHeaders(token),
     );
 
     if (response.statusCode == 200) {
@@ -68,10 +63,7 @@ class DashboardService {
 
     final response = await http.get(
       Uri.parse('$baseUrl/fleet/analytics?days=$days'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Origin': 'http://localhost:3000',
-      },
+      headers: ApiConfig.authHeaders(token),
     );
 
     if (response.statusCode == 200) {

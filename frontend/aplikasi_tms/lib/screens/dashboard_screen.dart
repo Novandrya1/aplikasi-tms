@@ -2,24 +2,93 @@ import 'package:flutter/material.dart';
 import 'warehouse_management_screen.dart';
 import 'transport_management_screen.dart';
 import 'order_management_screen.dart';
+import '../widgets/bottom_nav_bar.dart';
+import '../services/auth_service.dart';
+import '../services/api_service.dart';
+import '../models/models.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _currentIndex = 0;
+  String userName = 'User';
+  DashboardStats? _stats;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _loadDashboardStats();
+  }
+
+  void _loadUserData() async {
+    final user = await AuthService.getCurrentUser();
+    if (user != null) {
+      setState(() {
+        userName = user.fullName;
+      });
+    }
+  }
+
+  void _loadDashboardStats() async {
+    try {
+      final stats = await ApiService.getDashboardStats();
+      setState(() {
+        _stats = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onBottomNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.pushNamed(context, '/analytics');
+        break;
+      case 2:
+        Navigator.pushNamed(context, '/notifications');
+        break;
+      case 3:
+        Navigator.pushNamed(context, '/profile');
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('TMS Dashboard'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+            icon: Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+          ),
+          IconButton(
+            icon: Icon(Icons.account_circle),
+            onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),
         ],
       ),
+      drawer: _buildDrawer(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -64,6 +133,11 @@ class DashboardScreen extends StatelessWidget {
             
             const SizedBox(height: 32),
             
+            // Dashboard Stats
+            _buildStatsSection(),
+            
+            const SizedBox(height: 32),
+            
             // Level 2 - Support Processes
             _buildLevelHeader('Level 2 - Support Processes'),
             const SizedBox(height: 16),
@@ -89,45 +163,256 @@ class DashboardScreen extends StatelessWidget {
             
             const SizedBox(height: 32),
             
-            // Level 3 - Detailed Processes
-            _buildLevelHeader('Level 3 - Operational Processes'),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+            const SizedBox(height: 100), // Space for bottom nav
+          ],
+        ),
+      ),
+      bottomNavigationBar: CustomBottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onBottomNavTap,
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF1976D2), Color(0xFF1565C0)],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSmallCard('Registrasi\nArmada', Icons.app_registration, Colors.red),
-                _buildSmallCard('Registrasi GPS', Icons.gps_not_fixed, Colors.orange),
-                _buildSmallCard('Integrasi\nArmada', Icons.integration_instructions, Colors.blue),
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person, color: Color(0xFF1976D2), size: 30),
+                ),
+                SizedBox(height: 12),
+                Text(
+                  userName,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Transport Management',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
               ],
             ),
-            
-            const SizedBox(height: 24),
-            
-            // Level 4 - Management Processes
-            _buildLevelHeader('Level 4 - Management & Analytics'),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
-                _buildSmallCard('Management\nperformance', Icons.trending_up, Colors.green),
-                _buildSmallCard('Optimisasi &\nPerformance', Icons.tune, Colors.blue),
-                _buildSmallCard('Dashboards', Icons.dashboard, Colors.purple),
-                _buildSmallCard('Real-Time\nTracking &\nGPS', Icons.my_location, Colors.red),
-                _buildSmallCard('Laporan &\nOperational', Icons.assessment, Colors.orange),
-                _buildSmallCard('Peringatan\nPerformance', Icons.warning, Colors.amber),
-                _buildSmallCard('Analisis\nperforma\narmada', Icons.analytics, Colors.indigo),
+                _buildDrawerSection('Operational Processes', [
+                  _buildDrawerItem(Icons.app_registration, 'Registrasi Armada', () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Fleet Registration');
+                  }),
+                  _buildDrawerItem(Icons.gps_not_fixed, 'Registrasi GPS', () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/gps-registration');
+                  }),
+                  _buildDrawerItem(Icons.integration_instructions, 'Integrasi Armada', () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Fleet Management');
+                  }),
+                ]),
+                _buildDrawerSection('Management & Analytics', [
+                  _buildDrawerItem(Icons.trending_up, 'Performance Management', () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/analytics');
+                  }),
+                  _buildDrawerItem(Icons.tune, 'Optimisasi Performance', () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Optimisasi Performance');
+                  }),
+                  _buildDrawerItem(Icons.my_location, 'Real-Time Tracking', () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Real-Time Tracking');
+                  }),
+                  _buildDrawerItem(Icons.assessment, 'Laporan Operational', () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/analytics');
+                  }),
+                  _buildDrawerItem(Icons.warning, 'Peringatan Performance', () {
+                    Navigator.pop(context);
+                    _showComingSoon(context, 'Peringatan Performance');
+                  }),
+                  _buildDrawerItem(Icons.analytics, 'Analisis Performa Armada', () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, '/analytics');
+                  }),
+                ]),
+                Divider(),
+                _buildDrawerItem(Icons.logout, 'Keluar', () {
+                  Navigator.pushReplacementNamed(context, '/');
+                }, color: Colors.red),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerSection(String title, List<Widget> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        ...items,
+        SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap, {Color? color}) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? Colors.grey[700], size: 22),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color ?? Colors.grey[800],
+          fontSize: 14,
+        ),
+      ),
+      onTap: onTap,
+      dense: true,
+    );
+  }
+
+  Widget _buildStatsSection() {
+    if (_isLoading) {
+      return Container(
+        height: 120,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ringkasan Sistem',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+        SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Armada',
+                _stats?.totalVehicles.toString() ?? '0',
+                Icons.local_shipping,
+                Colors.blue,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                'Trip Aktif',
+                _stats?.ongoingTrips.toString() ?? '0',
+                Icons.route,
+                Colors.green,
+              ),
             ),
           ],
         ),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Driver Aktif',
+                _stats?.activeDrivers.toString() ?? '0',
+                Icons.person,
+                Colors.orange,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                'Trip Selesai',
+                _stats?.completedTrips.toString() ?? '0',
+                Icons.check_circle,
+                Colors.purple,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }

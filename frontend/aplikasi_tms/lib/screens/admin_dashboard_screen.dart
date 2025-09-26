@@ -6,6 +6,7 @@ import 'admin_vehicles_screen.dart';
 import 'admin_verification_dashboard_screen.dart';
 import 'ocr_demo_screen.dart';
 import 'admin_document_verification_screen.dart';
+import '../services/auth_service.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -32,7 +33,7 @@ class AdminDashboardScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+            onPressed: () => _logout(context),
           ),
         ],
       ),
@@ -282,6 +283,24 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
+  void _logout(BuildContext context) async {
+    try {
+      await AuthService.logout();
+      if (context.mounted) {
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: ListView(
@@ -370,7 +389,7 @@ class AdminDashboardScreen extends StatelessWidget {
           ListTile(
             leading: Icon(Icons.logout, color: Colors.red),
             title: Text('Logout', style: TextStyle(color: Colors.red)),
-            onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+            onTap: () => _logout(context),
           ),
         ],
       ),

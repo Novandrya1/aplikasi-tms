@@ -5,7 +5,23 @@ import '../models/models.dart';
 import 'auth_service.dart';
 
 class ApiService {
-  static String get baseUrl => ApiConfig.baseUrl;
+  static Future<http.Response> _makeRequest(Uri uri) async {
+    return await http.get(uri).timeout(Duration(seconds: 30));
+  }
+  static String get baseUrl {
+    final apiBase = ApiConfig.baseUrl;
+    return apiBase.isEmpty ? '/api/v1' : '$apiBase/api/v1';
+  }
+  
+  static String _validateUrl(String endpoint) {
+    try {
+      final url = '$baseUrl$endpoint';
+      Uri.parse(url);
+      return url;
+    } catch (e) {
+      return '/api/v1$endpoint';
+    }
+  }
   
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
@@ -16,9 +32,8 @@ class ApiService {
   }
   
   static Future<Map<String, dynamic>> ping() async {
-    final response = await http.get(
+    final response = await _makeRequest(
       Uri.parse('$baseUrl/ping'),
-      headers: await _getHeaders(),
     );
     
     if (response.statusCode == 200) {
@@ -28,9 +43,8 @@ class ApiService {
   }
   
   static Future<Map<String, dynamic>> getHealth() async {
-    final response = await http.get(
+    final response = await _makeRequest(
       Uri.parse(ApiConfig.healthUrl),
-      headers: await _getHeaders(),
     );
     
     if (response.statusCode == 200) {
@@ -40,9 +54,8 @@ class ApiService {
   }
   
   static Future<Map<String, dynamic>> getDbStatus() async {
-    final response = await http.get(
+    final response = await _makeRequest(
       Uri.parse('$baseUrl/db-status'),
-      headers: await _getHeaders(),
     );
     
     if (response.statusCode == 200) {
@@ -53,7 +66,7 @@ class ApiService {
   
   static Future<DashboardStats> getDashboardStats() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/dashboard/stats'),
+      Uri.parse(_validateUrl('/dashboard/stats')),
       headers: await _getHeaders(),
     );
     

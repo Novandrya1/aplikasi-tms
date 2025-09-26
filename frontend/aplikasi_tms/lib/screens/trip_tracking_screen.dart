@@ -3,9 +3,9 @@ import 'dart:async';
 import '../services/driver_service.dart';
 
 class TripTrackingScreen extends StatefulWidget {
-  final Map<String, dynamic> trip;
+  final int tripId;
 
-  TripTrackingScreen({required this.trip});
+  TripTrackingScreen({required this.tripId});
 
   @override
   _TripTrackingScreenState createState() => _TripTrackingScreenState();
@@ -18,11 +18,23 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
   double _currentLng = 106.8456;
   double _currentSpeed = 0;
   int _trackingCount = 0;
+  Map<String, dynamic>? _trip;
 
   @override
   void initState() {
     super.initState();
-    _startTracking();
+    _loadTripData();
+  }
+
+  Future<void> _loadTripData() async {
+    try {
+      final trips = await DriverService.getDriverTrips();
+      _trip = trips.firstWhere((t) => t['id'] == widget.tripId);
+      setState(() {});
+      _startTracking();
+    } catch (e) {
+      print('Error loading trip: $e');
+    }
   }
 
   void _startTracking() {
@@ -41,8 +53,8 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
 
   void _simulateGPSUpdate() {
     // Simulate movement towards destination
-    final destLat = widget.trip['destination_lat'] ?? -6.9175; // Bandung
-    final destLng = widget.trip['destination_lng'] ?? 107.6191;
+    final destLat = _trip?['destination_lat'] ?? -6.9175; // Bandung
+    final destLng = _trip?['destination_lng'] ?? 107.6191;
     
     // Move slightly towards destination
     _currentLat += (destLat - _currentLat) * 0.1;
@@ -58,7 +70,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
   Future<void> _recordTracking() async {
     try {
       await DriverService.recordTripTracking(
-        widget.trip['id'],
+        widget.tripId,
         _currentLat,
         _currentLng,
         speed: _currentSpeed,
@@ -114,7 +126,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                 Icon(Icons.route, color: Colors.blue[600]),
                 SizedBox(width: 8),
                 Text(
-                  widget.trip['trip_number'] ?? '',
+                  _trip?['trip_number'] ?? 'Loading...',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -129,7 +141,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.trip['origin_address'] ?? '',
+                    _trip?['origin_address'] ?? 'Loading...',
                     style: TextStyle(fontSize: 14),
                   ),
                 ),
@@ -142,7 +154,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.trip['destination_address'] ?? '',
+                    _trip?['destination_address'] ?? 'Loading...',
                     style: TextStyle(fontSize: 14),
                   ),
                 ),

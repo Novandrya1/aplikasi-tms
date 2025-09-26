@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'driver_management_screen.dart';
 
 class ShipmentManagementScreen extends StatefulWidget {
   @override
@@ -9,6 +10,12 @@ class _ShipmentManagementScreenState extends State<ShipmentManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Manajemen Pengiriman'),
+        backgroundColor: Color(0xFF1976D2),
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -417,45 +424,3 @@ class ShipmentListScreen extends StatelessWidget {
   }
 }
 
-class DriverManagementScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Manajemen Driver'),
-        backgroundColor: Colors.brown,
-        foregroundColor: Colors.white,
-      ),
-      body: ListView.builder(
-        padding: EdgeInsets.all(16),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Card(
-            margin: EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.brown,
-                child: Icon(Icons.person, color: Colors.white),
-              ),
-              title: Text('Driver ${index + 1}'),
-              subtitle: Text('SIM: A ${1234567 + index}'),
-              trailing: Chip(
-                label: Text(index % 2 == 0 ? 'Available' : 'On Trip'),
-                backgroundColor: index % 2 == 0 ? Colors.green.shade100 : Colors.orange.shade100,
-              ),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tambah Driver - Coming Soon!')),
-          );
-        },
-        backgroundColor: Colors.brown,
-        child: Icon(Icons.add, color: Colors.white),
-      ),
-    );
-  }
-}

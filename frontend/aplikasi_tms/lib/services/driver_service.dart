@@ -130,6 +130,14 @@ class DriverService {
     }
   }
 
+  static Future<void> startTrip(int tripId) async {
+    await updateTripStatus(tripId, 'started');
+  }
+
+  static Future<void> completeTrip(int tripId) async {
+    await updateTripStatus(tripId, 'completed');
+  }
+
   static Future<void> recordTripTracking(int tripId, double latitude, double longitude, {double speed = 0}) async {
     final token = await AuthService.getToken();
     if (token == null) throw Exception('No authentication token');

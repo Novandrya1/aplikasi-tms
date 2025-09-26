@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../services/admin_service.dart';
-import '../services/auth_service.dart';
-import '../config/api_config.dart';
 
 class VehicleVerificationDetailScreen extends StatefulWidget {
   final int vehicleId;
@@ -49,19 +45,34 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     try {
       final vehicle = await AdminService.getVehicleDetails(widget.vehicleId);
       
-      // Use documents from vehicle details response if available
+      // Get attachments from multiple sources
       List<Map<String, dynamic>> attachments = [];
+      
+      // First, try to get from vehicle details response
       if (vehicle['documents'] != null) {
         attachments = List<Map<String, dynamic>>.from(vehicle['documents']);
       }
       
-      // Also try to get vehicle attachments
+      // Also try to get vehicle attachments separately
       try {
-        final vehicleAttachments = await _getVehicleAttachments(widget.vehicleId);
-        attachments.addAll(vehicleAttachments);
+        final vehicleAttachments = await AdminService.getVehicleAttachments(widget.vehicleId);
+        // Merge attachments, avoiding duplicates
+        for (var attachment in vehicleAttachments) {
+          bool exists = attachments.any((existing) => 
+            existing['attachment_type'] == attachment['attachment_type'] &&
+            existing['file_name'] == attachment['file_name']
+          );
+          if (!exists) {
+            attachments.add(attachment);
+          }
+        }
       } catch (e) {
         print('Could not load vehicle attachments: $e');
       }
+      
+      // Filter out irrelevant documents based on owner type and actual uploads
+      final ownerType = vehicle['owner_type'] ?? 'individual';
+      attachments = _filterRelevantDocuments(attachments, ownerType);
       
       setState(() {
         _vehicle = vehicle;
@@ -74,6 +85,30 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
         SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
+  }
+  
+  List<Map<String, dynamic>> _filterRelevantDocuments(List<Map<String, dynamic>> attachments, String ownerType) {
+    // Define required documents based on owner type
+    List<String> requiredDocs = [
+      'ktp',
+      'selfie_ktp', 
+      'stnk',
+      'bpkb',
+      'vehicle_photo_front',
+      'vehicle_photo_back',
+      'vehicle_photo_left',
+      'vehicle_photo_right',
+    ];
+    
+    if (ownerType == 'company') {
+      requiredDocs.addAll(['business_license', 'npwp']);
+    }
+    
+    // Filter attachments to only show relevant ones
+    return attachments.where((doc) {
+      String type = (doc['attachment_type'] ?? '').toLowerCase();
+      return requiredDocs.any((required) => type.contains(required.toLowerCase()));
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> _getVehicleAttachments(int vehicleId) async {
@@ -259,6 +294,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     final ownerType = _vehicle!['owner_type'] ?? 'individual';
     final isCompany = ownerType == 'company';
     
+    // Get owner data from nested user object or direct vehicle data
+    final ownerData = _vehicle!['user'] ?? _vehicle!;
+    
     return Card(
       child: Padding(
         padding: EdgeInsets.all(16),
@@ -277,21 +315,32 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
             ),
             SizedBox(height: 12),
             if (isCompany) ...[
-              _buildInfoRow(Icons.apartment, 'Nama Perusahaan', _vehicle!['company_name']),
-              _buildInfoRow(Icons.description, 'SIUP/NIB', _vehicle!['business_license']),
+              _buildInfoRow(Icons.apartment, 'Nama Perusahaan', _vehicle!['company_name'] ?? ownerData['company_name']),
+              _buildInfoRow(Icons.description, 'SIUP/NIB', _vehicle!['business_license_number'] ?? ownerData['business_license_number']),
+              _buildInfoRow(Icons.receipt_long, 'NPWP', _vehicle!['npwp_number'] ?? ownerData['npwp_number']),
             ],
-            _buildInfoRow(Icons.person, 'Nama Pemilik', _vehicle!['owner_name']),
-            _buildInfoRow(Icons.badge, 'No. KTP', _vehicle!['ktp_number']),
-            if (isCompany)
-              _buildInfoRow(Icons.receipt_long, 'NPWP', _vehicle!['npwp']),
-            _buildInfoRow(Icons.email, 'Email', _vehicle!['owner_email']),
-            _buildInfoRow(Icons.phone, 'Telepon', _vehicle!['owner_phone']),
-            _buildInfoRow(Icons.location_on, 'Alamat', _vehicle!['owner_address']),
-            _buildInfoRow(Icons.account_circle, 'Username', _vehicle!['owner_username']),
+            _buildInfoRow(Icons.person, 'Nama Pemilik', _vehicle!['owner_name'] ?? ownerData['full_name'] ?? ownerData['name']),
+            _buildInfoRow(Icons.badge, 'No. KTP', _vehicle!['ktp_number'] ?? ownerData['ktp_number']),
+            _buildInfoRow(Icons.email, 'Email', _vehicle!['owner_email'] ?? ownerData['email']),
+            _buildInfoRow(Icons.phone, 'Telepon', _vehicle!['owner_phone'] ?? ownerData['phone']),
+            _buildInfoRow(Icons.location_on, 'Alamat', _vehicle!['owner_address'] ?? ownerData['address']),
+            _buildInfoRow(Icons.account_circle, 'Username', ownerData['username']),
+            if (_vehicle!['created_at'] != null)
+              _buildInfoRow(Icons.calendar_today, 'Tanggal Daftar', _formatDate(_vehicle!['created_at'])),
           ],
         ),
       ),
     );
+  }
+  
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final date = DateTime.parse(dateStr);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
   }
 
   Widget _buildTechnicalInfoCard() {
@@ -333,26 +382,38 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
   }
 
   Widget _buildDocumentsCard() {
+    final ownerType = _vehicle!['owner_type'] ?? 'individual';
+    final isCompany = ownerType == 'company';
+    
     // Group documents by category
     Map<String, List<Map<String, dynamic>>> groupedDocs = {
       'Dokumen Pemilik': [],
       'Dokumen Kendaraan': [],
       'Foto Kendaraan': [],
-      'Dokumen Perusahaan': [],
     };
     
+    if (isCompany) {
+      groupedDocs['Dokumen Perusahaan'] = [];
+    }
+    
+    // Only group actual uploaded documents
     for (var doc in _attachments) {
-      String type = doc['attachment_type'] ?? '';
+      String type = (doc['attachment_type'] ?? '').toLowerCase();
+      
       if (type.contains('ktp') || type.contains('selfie')) {
         groupedDocs['Dokumen Pemilik']!.add(doc);
       } else if (type.contains('stnk') || type.contains('bpkb') || type.contains('tax') || type.contains('insurance')) {
         groupedDocs['Dokumen Kendaraan']!.add(doc);
-      } else if (type.contains('vehicle_photo')) {
+      } else if (type.contains('vehicle_photo') || type.contains('photo')) {
         groupedDocs['Foto Kendaraan']!.add(doc);
-      } else if (type.contains('business') || type.contains('npwp')) {
+      } else if (isCompany && (type.contains('business') || type.contains('npwp') || type.contains('company'))) {
         groupedDocs['Dokumen Perusahaan']!.add(doc);
       }
     }
+    
+    // Calculate expected minimum documents
+    int expectedDocs = isCompany ? 8 : 6; // Company needs more docs
+    bool isComplete = _attachments.length >= expectedDocs;
 
     return Card(
       child: Padding(
@@ -365,20 +426,20 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                 Icon(Icons.folder_open, color: Colors.purple[600]),
                 SizedBox(width: 8),
                 Text(
-                  'Dokumen Lengkap Registrasi',
+                  'Dokumen yang Diupload',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Spacer(),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _attachments.length >= 6 ? Colors.green[100] : Colors.orange[100],
+                    color: isComplete ? Colors.green[100] : Colors.orange[100],
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${_attachments.length} dokumen',
                     style: TextStyle(
-                      color: _attachments.length >= 6 ? Colors.green[700] : Colors.orange[700],
+                      color: isComplete ? Colors.green[700] : Colors.orange[700],
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -386,6 +447,42 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                 ),
               ],
             ),
+            SizedBox(height: 8),
+            
+            // Document completeness indicator
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isComplete ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isComplete ? Colors.green[200]! : Colors.orange[200]!,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isComplete ? Icons.check_circle : Icons.warning,
+                    color: isComplete ? Colors.green[600] : Colors.orange[600],
+                    size: 16,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isComplete 
+                        ? 'Dokumen lengkap untuk verifikasi'
+                        : 'Dokumen belum lengkap (minimal $expectedDocs dokumen)',
+                      style: TextStyle(
+                        color: isComplete ? Colors.green[700] : Colors.orange[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
             SizedBox(height: 16),
             if (_attachments.isEmpty)
               Container(
@@ -401,7 +498,7 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Tidak ada dokumen yang diupload. Registrasi tidak lengkap!',
+                        'Tidak ada dokumen yang diupload oleh user!',
                         style: TextStyle(color: Colors.red[800]),
                       ),
                     ),

@@ -6,7 +6,7 @@ class ApiConfig {
   
   static String get baseUrl {
     if (kIsWeb) {
-      return _webBaseUrl;
+      return ''; // Use nginx proxy
     }
     return _mobileBaseUrl;
   }

@@ -81,7 +81,7 @@ class AdminService {
     if (token == null) throw Exception('No authentication token');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/complete'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -89,8 +89,19 @@ class AdminService {
       final data = jsonDecode(response.body);
       return data['vehicle'];
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to get vehicle details');
+      // Fallback to basic endpoint if complete endpoint not available
+      final fallbackResponse = await http.get(
+        Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId'),
+        headers: ApiConfig.authHeaders(token),
+      );
+      
+      if (fallbackResponse.statusCode == 200) {
+        final data = jsonDecode(fallbackResponse.body);
+        return data['vehicle'];
+      } else {
+        final error = jsonDecode(fallbackResponse.body);
+        throw Exception(error['error'] ?? 'Failed to get vehicle details');
+      }
     }
   }
 
@@ -117,8 +128,9 @@ class AdminService {
     final token = await AuthService.getToken();
     if (token == null) throw Exception('No authentication token');
 
+    // Try admin endpoint first for complete access
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/vehicles/$vehicleId/attachments'),
+      Uri.parse('$baseUrl/api/v1/admin/vehicles/$vehicleId/attachments'),
       headers: ApiConfig.authHeaders(token),
     );
 
@@ -126,8 +138,18 @@ class AdminService {
       final data = jsonDecode(response.body);
       return List<Map<String, dynamic>>.from(data['attachments'] ?? []);
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to get vehicle attachments');
+      // Fallback to regular endpoint
+      final fallbackResponse = await http.get(
+        Uri.parse('$baseUrl/api/v1/vehicles/$vehicleId/attachments'),
+        headers: ApiConfig.authHeaders(token),
+      );
+      
+      if (fallbackResponse.statusCode == 200) {
+        final data = jsonDecode(fallbackResponse.body);
+        return List<Map<String, dynamic>>.from(data['attachments'] ?? []);
+      } else {
+        return []; // Return empty list if no attachments found
+      }
     }
   }
 

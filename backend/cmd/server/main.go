@@ -18,6 +18,7 @@ import (
 	"github.com/youruser/aplikasi-tms/backend/internal/middleware"
 	"github.com/youruser/aplikasi-tms/backend/internal/models"
 	"github.com/youruser/aplikasi-tms/backend/internal/services"
+	"github.com/youruser/aplikasi-tms/backend/internal/repository"
 )
 
 func main() {
@@ -165,6 +166,13 @@ func main() {
 		api.PUT("/notifications/:id/read", middleware.AuthRequired(), markNotificationReadHandler)
 		api.GET("/fleet/tracking", middleware.AuthRequired(), getVehicleTrackingHandler)
 		api.GET("/fleet/analytics", middleware.AuthRequired(), getRevenueAnalyticsHandler)
+		
+		// GPS Registration endpoints
+		api.POST("/gps-registration", createGPSRegistrationHandler)
+		api.GET("/gps-registration", middleware.AuthRequired(), middleware.AdminRequired(), getAllGPSRegistrationsHandler)
+		api.GET("/gps-registration/pending", middleware.AuthRequired(), middleware.AdminRequired(), getPendingGPSRegistrationsHandler)
+		api.PUT("/gps-registration/:id/approve", middleware.AuthRequired(), middleware.AdminRequired(), approveGPSRegistrationHandler)
+		api.GET("/gps-registration/:id", middleware.AuthRequired(), getGPSRegistrationByIDHandler)
 		
 		// OCR endpoints
 		api.POST("/ocr/stnk", middleware.AuthRequired(), extractSTNKHandler)
@@ -1485,10 +1493,16 @@ func registerFleetVehicleHandler(c *gin.Context) {
 	
 	if err != nil {
 		log.Printf("Insert vehicle error: %v", err)
-		if strings.Contains(err.Error(), "duplicate") {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Vehicle with this registration number or chassis number already exists"})
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			if strings.Contains(err.Error(), "registration_number") {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Nomor plat kendaraan sudah terdaftar. Silakan gunakan nomor plat yang berbeda."})
+			} else if strings.Contains(err.Error(), "chassis_number") {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Nomor rangka kendaraan sudah terdaftar. Silakan periksa kembali nomor rangka."})
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Data kendaraan sudah terdaftar dalam sistem."})
+			}
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to register vehicle"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mendaftarkan kendaraan. Silakan coba lagi."})
 		}
 		return
 	}
@@ -2230,4 +2244,132 @@ func verifyDocumentHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Document verification updated"})
+}
+
+// GPS Registration handlers
+func createGPSRegistrationHandler(c *gin.Context) {
+	var req models.GPSRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSRegistrationRepository(conn)
+	registration, err := repo.Create(&req)
+	if err != nil {
+		log.Printf("Create GPS registration error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create GPS registration"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, registration)
+}
+
+func getAllGPSRegistrationsHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSRegistrationRepository(conn)
+	registrations, err := repo.GetAll()
+	if err != nil {
+		log.Printf("Get GPS registrations error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get registrations"})
+		return
+	}
+
+	c.JSON(http.StatusOK, registrations)
+}
+
+func getPendingGPSRegistrationsHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSRegistrationRepository(conn)
+	registrations, err := repo.GetPending()
+	if err != nil {
+		log.Printf("Get pending GPS registrations error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get pending registrations"})
+		return
+	}
+
+	c.JSON(http.StatusOK, registrations)
+}
+
+func approveGPSRegistrationHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	var req models.GPSApprovalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSRegistrationRepository(conn)
+	err = repo.UpdateStatus(id, req.Status, req.AdminNotes, userID.(int))
+	if err != nil {
+		log.Printf("Update GPS registration status error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update registration status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Registration status updated successfully"})
+}
+
+func getGPSRegistrationByIDHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+		return
+	}
+
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSRegistrationRepository(conn)
+	registration, err := repo.GetByID(id)
+	if err != nil {
+		log.Printf("Get GPS registration error: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Registration not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, registration)
 }

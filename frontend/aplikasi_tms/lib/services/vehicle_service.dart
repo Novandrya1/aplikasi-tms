@@ -19,7 +19,7 @@ class VehicleService {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
-        Uri.parse('$baseUrl/vehicles'),
+        Uri.parse('$baseUrl/api/v1/fleet/vehicles'),
         headers: headers,
         body: json.encode(vehicleData),
       );
@@ -43,7 +43,7 @@ class VehicleService {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
-        Uri.parse('$baseUrl/admin/vehicles'),
+        Uri.parse('$baseUrl/api/v1/admin/vehicles'),
         headers: headers,
       );
 

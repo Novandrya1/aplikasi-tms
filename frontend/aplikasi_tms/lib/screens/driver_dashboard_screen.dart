@@ -295,9 +295,10 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               color: _getTripStatusColor(trip['status']).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              DriverService.getTripStatusIcon(trip['status']),
-              style: TextStyle(fontSize: 20),
+            child: Icon(
+              _getTripStatusIcon(trip['status']),
+              color: _getTripStatusColor(trip['status']),
+              size: 20,
             ),
           ),
           SizedBox(width: 12),
@@ -308,12 +309,13 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                 Text(
                   trip['trip_number'] ?? '',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w500,
                     fontSize: 14,
                   ),
                 ),
+                SizedBox(height: 2),
                 Text(
-                  '${trip['origin_address']} → ${trip['destination_address']}',
+                  '${trip['origin_address'] ?? ''} → ${trip['destination_address'] ?? ''}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -321,15 +323,6 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (trip['driver_fee'] != null)
-                  Text(
-                    DriverService.formatCurrency(trip['driver_fee'].toDouble()),
-                    style: TextStyle(
-                      color: Colors.green[700],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
               ],
             ),
           ),
@@ -340,7 +333,7 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              DriverService.getTripStatusText(trip['status']),
+              _getTripStatusText(trip['status']),
               style: TextStyle(
                 color: _getTripStatusColor(trip['status']),
                 fontSize: 10,
@@ -352,30 +345,34 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
       ),
     );
   }
-
+  
   Color _getStatusColor(String? status) {
     switch (status) {
-      case 'available':
+      case 'active':
         return Colors.green;
-      case 'on_trip':
-        return Colors.blue;
+      case 'inactive':
+        return Colors.red;
+      case 'suspended':
+        return Colors.orange;
       default:
         return Colors.grey;
     }
   }
-
+  
   String _getStatusText(String? status) {
     switch (status) {
-      case 'available':
-        return 'Tersedia';
-      case 'on_trip':
-        return 'Dalam Perjalanan';
+      case 'active':
+        return 'Aktif';
+      case 'inactive':
+        return 'Tidak Aktif';
+      case 'suspended':
+        return 'Ditangguhkan';
       default:
-        return 'Offline';
+        return 'Unknown';
     }
   }
-
-  Color _getTripStatusColor(String status) {
+  
+  Color _getTripStatusColor(String? status) {
     switch (status) {
       case 'assigned':
         return Colors.orange;
@@ -385,6 +382,32 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
         return Colors.green;
       default:
         return Colors.grey;
+    }
+  }
+  
+  IconData _getTripStatusIcon(String? status) {
+    switch (status) {
+      case 'assigned':
+        return Icons.assignment;
+      case 'started':
+        return Icons.navigation;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.help;
+    }
+  }
+  
+  String _getTripStatusText(String? status) {
+    switch (status) {
+      case 'assigned':
+        return 'Ditugaskan';
+      case 'started':
+        return 'Aktif';
+      case 'completed':
+        return 'Selesai';
+      default:
+        return 'Unknown';
     }
   }
 }

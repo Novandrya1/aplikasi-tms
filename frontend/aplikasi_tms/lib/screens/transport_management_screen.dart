@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'fleet_management_screen.dart';
 import 'trip_management_screen.dart';
 
 class TransportManagementScreen extends StatelessWidget {
@@ -103,19 +102,12 @@ class TransportManagementScreen extends StatelessWidget {
               // Main Components Grid
               Expanded(
                 child: GridView.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: 1,
                   crossAxisSpacing: 20,
                   mainAxisSpacing: 20,
                   childAspectRatio: 1.1,
                   children: [
-                    _buildMainComponent(
-                      context,
-                      'Manajemen\nArmada',
-                      Icons.directions_car,
-                      Colors.orange,
-                      'Kelola kendaraan, driver, dan fleet',
-                      () => Navigator.pushNamed(context, '/fleet-management'),
-                    ),
+
                     _buildMainComponent(
                       context,
                       'Manajemen\nPengiriman',

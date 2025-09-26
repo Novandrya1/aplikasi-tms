@@ -23,10 +23,16 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
     
     // Set initial tab based on filter
     if (widget.initialFilter == 'started') {
-      _tabController.index = 1;
+      _tabController.index = 2;
     }
     
     _loadTrips();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTrips() async {
@@ -171,9 +177,10 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
                     color: _getTripStatusColor(status).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    DriverService.getTripStatusIcon(status),
-                    style: TextStyle(fontSize: 24),
+                  child: Icon(
+                    _getTripStatusIcon(status),
+                    color: _getTripStatusColor(status),
+                    size: 24,
                   ),
                 ),
                 SizedBox(width: 12),
@@ -205,7 +212,7 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    DriverService.getTripStatusText(status),
+                    _getTripStatusText(status),
                     style: TextStyle(
                       color: _getTripStatusColor(status),
                       fontSize: 12,
@@ -281,10 +288,10 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
                   Icon(Icons.payments, size: 16, color: Colors.green[600]),
                   SizedBox(width: 8),
                   Text(
-                    'Fee: ${DriverService.formatCurrency(trip['driver_fee'].toDouble())}',
+                    'Fee: ${_formatCurrency(trip['driver_fee'])}',
                     style: TextStyle(
                       color: Colors.green[700],
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -293,35 +300,28 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
             ],
             
             SizedBox(height: 12),
-            
-            // Action Buttons
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (status == 'assigned')
-                  ElevatedButton.icon(
-                    onPressed: () => _startTrip(trip),
-                    icon: Icon(Icons.play_arrow, size: 16),
-                    label: Text('Mulai'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
+                if (status == 'assigned') ...[
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _startTrip(trip['id']),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[600],
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text('Mulai Perjalanan'),
                     ),
                   ),
-                if (status == 'started') ...[
-                  TextButton.icon(
-                    onPressed: () => _openTracking(trip),
-                    icon: Icon(Icons.navigation, size: 16),
-                    label: Text('Tracking'),
-                  ),
-                  SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _completeTrip(trip),
-                    icon: Icon(Icons.check, size: 16),
-                    label: Text('Selesai'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      foregroundColor: Colors.white,
+                ] else if (status == 'started') ...[
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => _openTracking(trip),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text('Tracking'),
                     ),
                   ),
                 ],
@@ -332,7 +332,22 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
       ),
     );
   }
-
+  
+  String _formatDateTime(String? dateTime) {
+    if (dateTime == null) return '';
+    try {
+      final dt = DateTime.parse(dateTime);
+      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateTime;
+    }
+  }
+  
+  String _formatCurrency(dynamic amount) {
+    if (amount == null) return 'Rp 0';
+    return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+  }
+  
   Color _getTripStatusColor(String status) {
     switch (status) {
       case 'assigned':
@@ -345,90 +360,53 @@ class _DriverTripsScreenState extends State<DriverTripsScreen> with SingleTicker
         return Colors.grey;
     }
   }
-
-  String _formatDateTime(String? dateTimeStr) {
-    if (dateTimeStr == null) return '';
-    
-    try {
-      final dateTime = DateTime.parse(dateTimeStr);
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateTimeStr;
+  
+  IconData _getTripStatusIcon(String status) {
+    switch (status) {
+      case 'assigned':
+        return Icons.assignment;
+      case 'started':
+        return Icons.navigation;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.help;
     }
   }
-
-  Future<void> _startTrip(Map<String, dynamic> trip) async {
+  
+  String _getTripStatusText(String status) {
+    switch (status) {
+      case 'assigned':
+        return 'Ditugaskan';
+      case 'started':
+        return 'Aktif';
+      case 'completed':
+        return 'Selesai';
+      default:
+        return 'Unknown';
+    }
+  }
+  
+  Future<void> _startTrip(int tripId) async {
     try {
-      await DriverService.updateTripStatus(trip['id'], 'started');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Perjalanan dimulai!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      await DriverService.startTrip(tripId);
       _loadTrips();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Perjalanan dimulai'), backgroundColor: Colors.green),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }
-
-  Future<void> _completeTrip(Map<String, dynamic> trip) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Selesaikan Perjalanan'),
-        content: Text('Apakah Anda yakin perjalanan sudah selesai?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Selesai'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await DriverService.updateTripStatus(trip['id'], 'completed');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Perjalanan selesai!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadTrips();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
+  
   void _openTracking(Map<String, dynamic> trip) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TripTrackingScreen(trip: trip),
+        builder: (context) => TripTrackingScreen(tripId: trip['id']),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 }
