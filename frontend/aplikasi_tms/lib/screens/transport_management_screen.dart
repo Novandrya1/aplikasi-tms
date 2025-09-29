@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'trip_management_screen.dart';
 
 class TransportManagementScreen extends StatelessWidget {
   const TransportManagementScreen({super.key});
@@ -8,7 +7,7 @@ class TransportManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transport Management System (TMS)'),
+        title: const Text('Transport Management System'),
         backgroundColor: Color(0xFF1976D2),
         foregroundColor: Colors.white,
         elevation: 4,
@@ -88,9 +87,9 @@ class TransportManagementScreen extends StatelessWidget {
               
               const SizedBox(height: 32),
               
-              // Level 2 - Main Components
+              // Main Components
               Text(
-                'Level 2 - Transport Management Components',
+                'Komponen Utama',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -102,12 +101,19 @@ class TransportManagementScreen extends StatelessWidget {
               // Main Components Grid
               Expanded(
                 child: GridView.count(
-                  crossAxisCount: 1,
+                  crossAxisCount: 2,
                   crossAxisSpacing: 20,
                   mainAxisSpacing: 20,
-                  childAspectRatio: 1.1,
+                  childAspectRatio: 1.0,
                   children: [
-
+                    _buildMainComponent(
+                      context,
+                      'Manajemen\nArmada',
+                      Icons.directions_car,
+                      Colors.blue,
+                      'Kelola kendaraan, driver, dan registrasi',
+                      () => Navigator.pushNamed(context, '/vehicle-management'),
+                    ),
                     _buildMainComponent(
                       context,
                       'Manajemen\nPengiriman',
@@ -119,8 +125,6 @@ class TransportManagementScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              
-
             ],
           ),
         ),
@@ -193,7 +197,7 @@ class TransportManagementScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  Icons.add,
+                  Icons.arrow_forward,
                   color: color,
                   size: 16,
                 ),
@@ -201,15 +205,6 @@ class TransportManagementScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon'),
-        backgroundColor: Colors.blue,
       ),
     );
   }

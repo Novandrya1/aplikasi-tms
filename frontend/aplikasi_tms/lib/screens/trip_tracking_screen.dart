@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../services/driver_service.dart';
 
 class TripTrackingScreen extends StatefulWidget {
   final int tripId;
 
-  TripTrackingScreen({required this.tripId});
+  const TripTrackingScreen({super.key, required this.tripId});
 
   @override
-  _TripTrackingScreenState createState() => _TripTrackingScreenState();
+  State<TripTrackingScreen> createState() => _TripTrackingScreenState();
 }
 
 class _TripTrackingScreenState extends State<TripTrackingScreen> {
   Timer? _trackingTimer;
   bool _isTracking = false;
-  double _currentLat = -6.2088; // Jakarta default
+  bool _isLoading = false;
+  double _currentLat = -6.2088;
   double _currentLng = 106.8456;
   double _currentSpeed = 0;
   int _trackingCount = 0;
-  Map<String, dynamic>? _trip;
 
   @override
   void initState() {
@@ -27,21 +26,15 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
   }
 
   Future<void> _loadTripData() async {
-    try {
-      final trips = await DriverService.getDriverTrips();
-      _trip = trips.firstWhere((t) => t['id'] == widget.tripId);
-      setState(() {});
-      _startTracking();
-    } catch (e) {
-      print('Error loading trip: $e');
-    }
+    setState(() => _isLoading = true);
+    // Simulate loading
+    await Future.delayed(Duration(seconds: 1));
+    setState(() => _isLoading = false);
   }
 
   void _startTracking() {
     setState(() => _isTracking = true);
-    
-    // Simulate GPS tracking every 30 seconds
-    _trackingTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    _trackingTimer = Timer.periodic(Duration(seconds: 5), (timer) {
       _simulateGPSUpdate();
     });
   }
@@ -52,32 +45,12 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
   }
 
   void _simulateGPSUpdate() {
-    // Simulate movement towards destination
-    final destLat = _trip?['destination_lat'] ?? -6.9175; // Bandung
-    final destLng = _trip?['destination_lng'] ?? 107.6191;
-    
-    // Move slightly towards destination
-    _currentLat += (destLat - _currentLat) * 0.1;
-    _currentLng += (destLng - _currentLng) * 0.1;
-    _currentSpeed = 40 + (DateTime.now().millisecond % 40); // Random speed 40-80 km/h
-    
-    setState(() => _trackingCount++);
-    
-    // Record tracking
-    _recordTracking();
-  }
-
-  Future<void> _recordTracking() async {
-    try {
-      await DriverService.recordTripTracking(
-        widget.tripId,
-        _currentLat,
-        _currentLng,
-        speed: _currentSpeed,
-      );
-    } catch (e) {
-      print('Tracking error: $e');
-    }
+    setState(() {
+      _currentLat += (0.001 * (DateTime.now().millisecond % 10 - 5));
+      _currentLng += (0.001 * (DateTime.now().millisecond % 10 - 5));
+      _currentSpeed = 40 + (DateTime.now().millisecond % 40);
+      _trackingCount++;
+    });
   }
 
   @override
@@ -94,23 +67,24 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTripInfo(),
-            SizedBox(height: 16),
-            _buildTrackingStatus(),
-            SizedBox(height: 16),
-            _buildLocationInfo(),
-            SizedBox(height: 16),
-            _buildMapPlaceholder(),
-            SizedBox(height: 16),
-            _buildTrackingStats(),
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _buildTripInfo(),
+                  SizedBox(height: 16),
+                  _buildTrackingStatus(),
+                  SizedBox(height: 16),
+                  _buildLocationInfo(),
+                  SizedBox(height: 16),
+                  _buildMapPlaceholder(),
+                  SizedBox(height: 16),
+                  _buildTrackingStats(),
+                ],
+              ),
+            ),
     );
   }
 
@@ -126,11 +100,8 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                 Icon(Icons.route, color: Colors.blue[600]),
                 SizedBox(width: 8),
                 Text(
-                  _trip?['trip_number'] ?? 'Loading...',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'TRIP-${widget.tripId}',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -139,12 +110,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
               children: [
                 Icon(Icons.radio_button_checked, color: Colors.green, size: 16),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _trip?['origin_address'] ?? 'Loading...',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
+                Expanded(child: Text('Jakarta Pusat')),
               ],
             ),
             SizedBox(height: 8),
@@ -152,12 +118,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
               children: [
                 Icon(Icons.location_on, color: Colors.red, size: 16),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _trip?['destination_address'] ?? 'Loading...',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
+                Expanded(child: Text('Bandung')),
               ],
             ),
           ],
@@ -199,12 +160,9 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                   ),
                   Text(
                     _isTracking 
-                        ? 'Lokasi diperbarui setiap 30 detik'
+                        ? 'Lokasi diperbarui setiap 5 detik'
                         : 'Tekan tombol play untuk memulai tracking',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -224,10 +182,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
           children: [
             Text(
               'Informasi Lokasi',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
             Row(
@@ -283,20 +238,14 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
             SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
         SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
       ],
     );
@@ -314,59 +263,17 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.map,
-              size: 64,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.map, size: 64, color: Colors.grey[400]),
             SizedBox(height: 8),
             Text(
               'Peta GPS',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             SizedBox(height: 4),
             Text(
               'Lat: ${_currentLat.toStringAsFixed(4)}, Lng: ${_currentLng.toStringAsFixed(4)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
-            if (_isTracking) ...[
-              SizedBox(height: 8),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.green[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'Live Tracking',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -382,10 +289,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
           children: [
             Text(
               'Statistik Tracking',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
             Row(
@@ -401,7 +305,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
                 Expanded(
                   child: _buildStatItem(
                     'Durasi',
-                    '${(_trackingCount * 0.5).toStringAsFixed(1)} menit',
+                    '${(_trackingCount * 5 / 60).toStringAsFixed(1)} menit',
                     Icons.timer,
                     Colors.orange,
                   ),
@@ -435,10 +339,7 @@ class _TripTrackingScreenState extends State<TripTrackingScreen> {
           ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
           ),
         ],
       ),

@@ -19,7 +19,7 @@ class VehicleService {
     try {
       final headers = await _getHeaders();
       final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/fleet/vehicles'),
+        Uri.parse('$baseUrl/api/v1/vehicles/register'),
         headers: headers,
         body: json.encode(vehicleData),
       );
@@ -27,7 +27,7 @@ class VehicleService {
       print('Register vehicle response: ${response.statusCode}');
       print('Register vehicle body: ${response.body}');
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return json.decode(response.body);
       } else {
         final error = json.decode(response.body);

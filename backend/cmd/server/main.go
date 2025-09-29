@@ -19,6 +19,7 @@ import (
 	"github.com/youruser/aplikasi-tms/backend/internal/models"
 	"github.com/youruser/aplikasi-tms/backend/internal/services"
 	"github.com/youruser/aplikasi-tms/backend/internal/repository"
+	"github.com/youruser/aplikasi-tms/backend/internal/handlers"
 )
 
 func main() {
@@ -173,6 +174,20 @@ func main() {
 		api.GET("/gps-registration/pending", middleware.AuthRequired(), middleware.AdminRequired(), getPendingGPSRegistrationsHandler)
 		api.PUT("/gps-registration/:id/approve", middleware.AuthRequired(), middleware.AdminRequired(), approveGPSRegistrationHandler)
 		api.GET("/gps-registration/:id", middleware.AuthRequired(), getGPSRegistrationByIDHandler)
+		
+		// GPS Device endpoints
+		api.GET("/gps-devices", middleware.AuthRequired(), middleware.AdminRequired(), getAllGPSDevicesHandler)
+		api.POST("/gps-devices/assign", middleware.AuthRequired(), middleware.AdminRequired(), assignGPSDeviceHandler)
+		api.PUT("/gps-devices/:deviceId/status", middleware.AuthRequired(), middleware.AdminRequired(), updateGPSDeviceStatusHandler)
+		
+		// GPS Tracking endpoints
+		api.POST("/gps-tracking/ingest", ingestGPSDataHandler)
+		api.POST("/gps-tracking/batch-ingest", batchIngestGPSDataHandler)
+		api.GET("/gps-tracking/positions", middleware.AuthRequired(), getLatestPositionsHandler)
+		api.GET("/gps-tracking/history/:deviceId", middleware.AuthRequired(), getTrackingHistoryHandler)
+		
+		// WebSocket endpoint
+		api.GET("/ws/tracking", handleWebSocketConnection)
 		
 		// OCR endpoints
 		api.POST("/ocr/stnk", middleware.AuthRequired(), extractSTNKHandler)
@@ -2372,4 +2387,101 @@ func getGPSRegistrationByIDHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, registration)
+}
+
+// GPS Device handlers
+func getAllGPSDevicesHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSDeviceRepository(conn)
+	handler := handlers.NewGPSDeviceHandler(repo)
+	handler.GetAllDevices(c)
+}
+
+func assignGPSDeviceHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSDeviceRepository(conn)
+	handler := handlers.NewGPSDeviceHandler(repo)
+	handler.AssignDevice(c)
+}
+
+func updateGPSDeviceStatusHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSDeviceRepository(conn)
+	handler := handlers.NewGPSDeviceHandler(repo)
+	handler.UpdateDeviceStatus(c)
+}
+
+// GPS Tracking handlers
+func ingestGPSDataHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSTrackingRepository(conn)
+	handler := handlers.NewGPSTrackingHandler(repo)
+	handler.IngestGPSData(c)
+}
+
+func batchIngestGPSDataHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSTrackingRepository(conn)
+	handler := handlers.NewGPSTrackingHandler(repo)
+	handler.BatchIngestGPSData(c)
+}
+
+func getLatestPositionsHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSTrackingRepository(conn)
+	handler := handlers.NewGPSTrackingHandler(repo)
+	handler.GetLatestPositions(c)
+}
+
+func getTrackingHistoryHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	repo := repository.NewGPSTrackingRepository(conn)
+	handler := handlers.NewGPSTrackingHandler(repo)
+	handler.GetTrackingHistory(c)
+}
+
+func handleWebSocketConnection(c *gin.Context) {
+	handlers.HandleWebSocket(c)
 }

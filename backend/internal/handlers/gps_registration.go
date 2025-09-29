@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -78,6 +80,17 @@ func (h *GPSRegistrationHandler) ApproveRegistration(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update registration status"})
 		return
+	}
+
+	// If approved, create GPS device
+	if req.Status == "approved" {
+		deviceID := fmt.Sprintf("GPS%06d", id)
+		deviceRepo := repository.NewGPSDeviceRepository(h.repo.GetDB())
+		_, err = deviceRepo.CreateDevice(id, deviceID)
+		if err != nil {
+			// Log error but don't fail the approval
+			log.Printf("Failed to create GPS device: %v", err)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Registration status updated successfully"})

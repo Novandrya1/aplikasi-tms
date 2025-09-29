@@ -15,6 +15,10 @@ func NewGPSRegistrationRepository(db *sql.DB) *GPSRegistrationRepository {
 	return &GPSRegistrationRepository{db: db}
 }
 
+func (r *GPSRegistrationRepository) GetDB() *sql.DB {
+	return r.db
+}
+
 func (r *GPSRegistrationRepository) Create(req *models.GPSRegistrationRequest) (*models.GPSRegistration, error) {
 	query := `
 		INSERT INTO gps_registrations (registration_number, vehicle_type, capacity_tons, operator_notes)

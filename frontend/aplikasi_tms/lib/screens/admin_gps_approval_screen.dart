@@ -122,7 +122,7 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -156,7 +156,7 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -170,9 +170,7 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
                 ),
               ],
             ),
-            
             const SizedBox(height: 16),
-            
             Row(
               children: [
                 Expanded(
@@ -191,7 +189,6 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
                 ),
               ],
             ),
-            
             if (registration.operatorNotes.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
@@ -224,9 +221,7 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
                 ),
               ),
             ],
-            
             const SizedBox(height: 16),
-            
             Row(
               children: [
                 Expanded(
@@ -293,84 +288,93 @@ class _AdminGPSApprovalScreenState extends State<AdminGPSApprovalScreen> {
     
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(action == 'approved' ? 'Setujui Registrasi' : 'Tolak Registrasi'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Nomor Registrasi: ${registration.registrationNumber}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Catatan Admin',
-                hintText: action == 'approved' 
-                    ? 'Catatan persetujuan...'
-                    : 'Alasan penolakan...',
-                border: const OutlineInputBorder(),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            action == 'approved' ? 'Setujui Registrasi GPS' : 'Tolak Registrasi GPS',
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nomor Registrasi: ${registration.registrationNumber}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Catatan Admin',
+                  hintText: 'Masukkan catatan untuk keputusan ini...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => _processApproval(registration, action, notesController.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: action == 'approved' ? Colors.green : Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(action == 'approved' ? 'Setujui' : 'Tolak'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => _processApproval(registration, action, notesController.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: action == 'approved' ? Colors.green : Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(action == 'approved' ? 'Setujui' : 'Tolak'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  void _processApproval(GPSRegistration registration, String status, String notes) async {
-    Navigator.pop(context); // Close dialog
+  Future<void> _processApproval(GPSRegistration registration, String action, String notes) async {
+    Navigator.of(context).pop();
     
     try {
       final token = await AuthService.getToken();
       if (token != null) {
-        await GPSService.approveRegistration(registration.id, status, notes, token);
+        await GPSService.approveRegistration(registration.id, action, notes, token);
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              status == 'approved' 
-                  ? 'Registrasi GPS berhasil disetujui'
-                  : 'Registrasi GPS berhasil ditolak'
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                action == 'approved' 
+                    ? 'Registrasi GPS berhasil disetujui'
+                    : 'Registrasi GPS berhasil ditolak',
+              ),
+              backgroundColor: action == 'approved' ? Colors.green : Colors.orange,
             ),
-            backgroundColor: status == 'approved' ? Colors.green : Colors.orange,
-          ),
-        );
-        
-        _loadPendingRegistrations(); // Refresh list
+          );
+          
+          _loadPendingRegistrations();
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   String _getVehicleTypeLabel(String type) {
     switch (type) {
-      case 'truk_kecil':
-        return 'Truk Kecil';
-      case 'truk_besar':
-        return 'Truk Besar';
+      case 'truck':
+        return 'Truk';
       case 'trailer':
         return 'Trailer';
+      case 'container':
+        return 'Container';
       default:
         return type;
     }

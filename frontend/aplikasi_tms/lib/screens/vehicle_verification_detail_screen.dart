@@ -183,35 +183,46 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
     String statusText = 'Menunggu Verifikasi';
     IconData statusIcon = Icons.pending;
     
-    switch (status) {
+    // Improved status handling with actual data
+    switch (status.toLowerCase()) {
       case 'approved':
         statusColor = Colors.green;
-        statusText = 'Disetujui';
+        statusText = '✅ Disetujui';
         statusIcon = Icons.check_circle;
         break;
       case 'rejected':
         statusColor = Colors.red;
-        statusText = 'Ditolak';
+        statusText = '❌ Ditolak';
         statusIcon = Icons.cancel;
         break;
       case 'pending':
-        switch (substatus) {
+      case 'submitted':
+        switch (substatus.toLowerCase()) {
           case 'needs_correction':
-            statusColor = Colors.orange;
-            statusText = 'Perlu Perbaikan';
+            statusColor = Colors.amber;
+            statusText = '⚠️ Perlu Perbaikan';
             statusIcon = Icons.warning;
             break;
           case 'under_review':
             statusColor = Colors.purple;
-            statusText = 'Sedang Ditinjau';
+            statusText = '🔍 Sedang Ditinjau';
             statusIcon = Icons.rate_review;
+            break;
+          case 'pending_inspection':
+            statusColor = Colors.indigo;
+            statusText = '🔎 Menunggu Inspeksi';
+            statusIcon = Icons.search;
             break;
           default:
             statusColor = Colors.orange;
-            statusText = 'Menunggu Verifikasi';
+            statusText = '⏳ Menunggu Verifikasi';
             statusIcon = Icons.pending;
         }
         break;
+      default:
+        statusColor = Colors.grey;
+        statusText = '❓ Status Tidak Dikenal';
+        statusIcon = Icons.help;
     }
 
     return Card(
@@ -236,7 +247,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _vehicle!['registration_number'] ?? 'Nomor Polisi Belum Diisi',
+                        (_vehicle!['registration_number'] ?? '').isEmpty 
+                          ? '🚫 Nomor Polisi Belum Diisi' 
+                          : '🚗 ${_vehicle!['registration_number']}',
                         style: TextStyle(
                           fontSize: 20, 
                           fontWeight: FontWeight.bold,
@@ -244,16 +257,24 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                         ),
                       ),
                       Text(
-                        '${_vehicle!['brand'] ?? 'N/A'} ${_vehicle!['model'] ?? 'N/A'} (${_vehicle!['year'] ?? 'N/A'})',
+                        _buildVehicleDescription(),
                         style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
                       if ((_vehicle!['days_waiting'] ?? 0) > 0)
-                        Text(
-                          'Menunggu ${_vehicle!['days_waiting']} hari',
-                          style: TextStyle(
-                            fontSize: 12, 
-                            color: (_vehicle!['days_waiting'] ?? 0) > 7 ? Colors.red : Colors.orange,
-                            fontWeight: FontWeight.w500,
+                        Container(
+                          margin: EdgeInsets.only(top: 4),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (_vehicle!['days_waiting'] ?? 0) > 7 ? Colors.red[100] : Colors.orange[100],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '⏰ Menunggu ${_vehicle!['days_waiting']} hari',
+                            style: TextStyle(
+                              fontSize: 11, 
+                              color: (_vehicle!['days_waiting'] ?? 0) > 7 ? Colors.red[700] : Colors.orange[700],
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                     ],
@@ -342,6 +363,130 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       return dateStr;
     }
   }
+  
+  String _buildVehicleDescription() {
+    final brand = _vehicle!['brand'] ?? '';
+    final model = _vehicle!['model'] ?? '';
+    final year = _vehicle!['year']?.toString() ?? '';
+    
+    List<String> parts = [];
+    if (brand.isNotEmpty) parts.add(brand);
+    if (model.isNotEmpty) parts.add(model);
+    if (year.isNotEmpty) parts.add('($year)');
+    
+    if (parts.isEmpty) {
+      return '⚠️ Data kendaraan belum lengkap';
+    }
+    
+    return parts.join(' ');
+  }
+  
+  int _calculateExpectedDocuments(bool isCompany) {
+    // Minimum required documents
+    int baseCount = 6; // KTP, Selfie+KTP, STNK, BPKB, 2 vehicle photos minimum
+    if (isCompany) {
+      baseCount += 2; // Business license, NPWP
+    }
+    return baseCount;
+  }
+  
+  bool _hasRequiredDocuments(bool isCompany) {
+    List<String> requiredTypes = ['ktp', 'stnk', 'bpkb'];
+    if (isCompany) {
+      requiredTypes.addAll(['business_license', 'npwp']);
+    }
+    
+    for (String required in requiredTypes) {
+      bool hasDoc = _attachments.any((doc) => 
+        (doc['attachment_type'] ?? '').toLowerCase().contains(required));
+      if (!hasDoc) return false;
+    }
+    return true;
+  }
+  
+  Widget _buildDocumentSummary(Map<String, List<Map<String, dynamic>>> groupedDocs, bool isCompany) {
+    List<String> missingDocs = [];
+    
+    // Check for missing critical documents
+    if (!_attachments.any((doc) => (doc['attachment_type'] ?? '').toLowerCase().contains('ktp'))) {
+      missingDocs.add('KTP');
+    }
+    if (!_attachments.any((doc) => (doc['attachment_type'] ?? '').toLowerCase().contains('stnk'))) {
+      missingDocs.add('STNK');
+    }
+    if (!_attachments.any((doc) => (doc['attachment_type'] ?? '').toLowerCase().contains('bpkb'))) {
+      missingDocs.add('BPKB');
+    }
+    if (isCompany) {
+      if (!_attachments.any((doc) => (doc['attachment_type'] ?? '').toLowerCase().contains('business'))) {
+        missingDocs.add('SIUP/NIB');
+      }
+      if (!_attachments.any((doc) => (doc['attachment_type'] ?? '').toLowerCase().contains('npwp'))) {
+        missingDocs.add('NPWP');
+      }
+    }
+    
+    if (missingDocs.isNotEmpty) {
+      return Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.amber[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.amber[200]!),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.amber[600], size: 16),
+                SizedBox(width: 8),
+                Text(
+                  'Dokumen Wajib yang Belum Diupload:',
+                  style: TextStyle(
+                    color: Colors.amber[800],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text(
+              missingDocs.join(', '),
+              style: TextStyle(
+                color: Colors.amber[700],
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green[600], size: 16),
+          SizedBox(width: 8),
+          Text(
+            '✅ Semua dokumen wajib sudah diupload',
+            style: TextStyle(
+              color: Colors.green[700],
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTechnicalInfoCard() {
     return Card(
@@ -411,9 +556,9 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
       }
     }
     
-    // Calculate expected minimum documents
-    int expectedDocs = isCompany ? 8 : 6; // Company needs more docs
-    bool isComplete = _attachments.length >= expectedDocs;
+    // Calculate expected minimum documents based on actual requirements
+    int expectedDocs = _calculateExpectedDocuments(isCompany);
+    bool isComplete = _attachments.length >= expectedDocs && _hasRequiredDocuments(isCompany);
 
     return Card(
       child: Padding(
@@ -492,14 +637,29 @@ class _VehicleVerificationDetailScreenState extends State<VehicleVerificationDet
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.red[200]!),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Icon(Icons.error, color: Colors.red[600]),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Tidak ada dokumen yang diupload oleh user!',
-                        style: TextStyle(color: Colors.red[800]),
+                    Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red[600]),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '🚨 Tidak ada dokumen yang diupload!',
+                            style: TextStyle(
+                              color: Colors.red[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'User belum mengupload dokumen apapun. Verifikasi tidak dapat dilakukan.',
+                      style: TextStyle(
+                        color: Colors.red[700],
+                        fontSize: 12,
                       ),
                     ),
                   ],
