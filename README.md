@@ -56,7 +56,7 @@ docker compose up -d --build
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 - **pgAdmin**: http://localhost:5050
-- **Demo Login**: admin@tms.com / admin123
+- **Demo Login**: admin@tms.com / password
 
 ### 4. Verify Services
 ```bash

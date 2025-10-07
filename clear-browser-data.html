@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear TMS Browser Data</title>
+</head>
+<body>
+    <h1>Clear TMS Browser Data</h1>
+    <p>Click the button below to clear all stored data and refresh the page:</p>
+    <button onclick="clearData()">Clear All Data</button>
+    
+    <script>
+        function clearData() {
+            // Clear localStorage
+            localStorage.removeItem('vehicle_registrations');
+            localStorage.removeItem('vehicle_verifications');
+            localStorage.clear();
+            
+            // Clear sessionStorage
+            sessionStorage.clear();
+            
+            alert('All browser data cleared! Redirecting to TMS application...');
+            
+            // Redirect to TMS application
+            window.location.href = 'http://localhost:3000';
+        }
+    </script>
+</body>
+</html>

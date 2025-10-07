@@ -12,6 +12,9 @@ import 'screens/admin_gps_approval_screen.dart';
 import 'screens/transport_management_screen.dart';
 import 'screens/trip_management_screen.dart';
 import 'screens/vehicle_management_screen.dart';
+import 'screens/vehicle_registration_screen.dart';
+import 'screens/admin_vehicles_screen.dart';
+import 'screens/vehicle_database_screen.dart';
 
 import 'screens/revenue_analytics_screen.dart';
 import 'screens/shipment_management_screen.dart';
@@ -47,6 +50,9 @@ class TMSApp extends StatelessWidget {
         '/transport-management': (context) => const TransportManagementScreen(),
         '/trip-management': (context) => const TripManagementScreen(),
         '/vehicle-management': (context) => const VehicleManagementScreen(),
+        '/vehicle-registration': (context) => const VehicleRegistrationScreen(),
+        '/admin-vehicles': (context) => const AdminVehiclesScreen(filter: 'all'),
+        '/vehicle-database': (context) => const VehicleDatabaseScreen(),
 
         '/revenue-analytics': (context) => RevenueAnalyticsScreen(),
         '/shipment-management': (context) => ShipmentManagementScreen(),

@@ -119,6 +119,8 @@ func main() {
 		api.GET("/approved-vehicles", getApprovedVehiclesPublicHandler)
 		api.GET("/vehicles", getVehiclesHandler)
 		api.GET("/vehicles/:id", getVehicleHandler)
+		api.GET("/vehicles/stats", getVehicleStatsHandler)
+		api.PUT("/vehicles/:id/status", middleware.AuthRequired(), middleware.AdminRequired(), updateVehicleStatusHandler)
 		
 		// Driver endpoints
 		api.POST("/drivers", middleware.AuthRequired(), createDriverHandler)
@@ -2484,4 +2486,29 @@ func getTrackingHistoryHandler(c *gin.Context) {
 
 func handleWebSocketConnection(c *gin.Context) {
 	handlers.HandleWebSocket(c)
+}
+
+// Enhanced vehicle handlers using VehicleHandler
+func getVehicleStatsHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	vehicleHandler := handlers.NewVehicleHandler(conn)
+	vehicleHandler.GetVehicleStats(c)
+}
+
+func updateVehicleStatusHandler(c *gin.Context) {
+	conn, err := db.Connect()
+	if err != nil {
+		log.Printf("Database connection error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	vehicleHandler := handlers.NewVehicleHandler(conn)
+	vehicleHandler.UpdateVehicleStatus(c)
 }

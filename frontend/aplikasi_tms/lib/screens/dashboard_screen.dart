@@ -216,9 +216,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: EdgeInsets.zero,
               children: [
                 _buildDrawerSection('Operational Processes', [
-                  _buildDrawerItem(Icons.app_registration, 'Registrasi Armada', () {
+                  _buildDrawerItem(Icons.app_registration, 'Registrasi Kendaraan', () {
                     Navigator.pop(context);
-                    _showComingSoon(context, 'Fleet Registration');
+                    Navigator.pushNamed(context, '/vehicle-registration');
                   }),
                   _buildDrawerItem(Icons.gps_not_fixed, 'Registrasi GPS', () {
                     Navigator.pop(context);

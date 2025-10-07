@@ -205,6 +205,48 @@ func GetVehicleByID(db *sql.DB, id int) (*models.Vehicle, error) {
 	return &v, nil
 }
 
+// GetApprovedVehicles returns only approved vehicles
+func GetApprovedVehicles(db *sql.DB) ([]models.Vehicle, error) {
+	query := `SELECT id, registration_number, vehicle_type, brand, model, year,
+		chassis_number, engine_number, color, capacity_weight, capacity_volume,
+		ownership_status, operational_status, insurance_company, insurance_policy_number,
+		insurance_expiry_date, last_maintenance_date, next_maintenance_date,
+		maintenance_notes, created_by, created_at, updated_at
+		FROM vehicles 
+		WHERE verification_status = 'approved' AND operational_status = 'active'
+		ORDER BY created_at DESC`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		log.Printf("Database error: failed to get approved vehicles: %v", middleware.SanitizeForLog(err.Error()))
+		return nil, fmt.Errorf("failed to get approved vehicles: %v", err)
+	}
+	defer rows.Close()
+
+	var vehicles []models.Vehicle
+	for rows.Next() {
+		var v models.Vehicle
+		err := rows.Scan(
+			&v.ID, &v.RegistrationNumber, &v.VehicleType, &v.Brand, &v.Model, &v.Year,
+			&v.ChassisNumber, &v.EngineNumber, &v.Color, &v.CapacityWeight, &v.CapacityVolume,
+			&v.OwnershipStatus, &v.OperationalStatus, &v.InsuranceCompany, &v.InsurancePolicyNumber,
+			&v.InsuranceExpiryDate, &v.LastMaintenanceDate, &v.NextMaintenanceDate,
+			&v.MaintenanceNotes, &v.CreatedBy, &v.CreatedAt, &v.UpdatedAt,
+		)
+		if err != nil {
+			log.Printf("Database error: failed to scan approved vehicle row: %v", middleware.SanitizeForLog(err.Error()))
+			return nil, fmt.Errorf("failed to scan approved vehicle: %v", err)
+		}
+		vehicles = append(vehicles, v)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during approved vehicles iteration: %v", err)
+	}
+
+	return vehicles, nil
+}
+
 // parseOptionalDate parses optional date string
 func parseOptionalDate(dateStr *string, fieldName string) (*time.Time, error) {
 	if dateStr == nil || *dateStr == "" {
