@@ -21,22 +21,39 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
   
   // Controllers
   final _regNumberController = TextEditingController();
+  final _vehicleTypeController = TextEditingController();
   final _brandController = TextEditingController();
   final _modelController = TextEditingController();
   final _colorController = TextEditingController();
   final _chassisController = TextEditingController();
   final _engineController = TextEditingController();
+  final _capacityController = TextEditingController();
+  final _ownershipStatusController = TextEditingController();
+  final _insuranceCompanyController = TextEditingController();
+  final _insurancePolicyController = TextEditingController();
+  final _maintenanceNotesController = TextEditingController();
   final _ownerNameController = TextEditingController();
   final _ownerEmailController = TextEditingController();
   final _ownerPhoneController = TextEditingController();
+  final _ownerAddressController = TextEditingController();
   final _companyNameController = TextEditingController();
   final _companyAddressController = TextEditingController();
+  
+  DateTime? _insuranceExpiryDate;
+  DateTime? _lastMaintenanceDate;
+  String _operationalStatus = 'active';
   
   final Map<String, String?> _uploadedDocs = {
     'stnk': null,
     'bpkb': null,
     'ktp': null,
-    'vehicle_photo': null,
+    'uji_kir': null,
+    'surat_polisi': null,
+    'asuransi': null,
+    'vehicle_photo_front': null,
+    'vehicle_photo_right': null,
+    'vehicle_photo_left': null,
+    'vehicle_photo_back': null,
   };
   
   final ImagePicker _picker = ImagePicker();
@@ -58,17 +75,15 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
   Widget _buildCurrentStep() {
     switch (_currentStep) {
       case 0:
-        return _buildOwnershipStep();
-      case 1:
         return _buildVehicleInfoStep();
-      case 2:
+      case 1:
         return _buildDocumentStep();
-      case 3:
+      case 2:
         return _buildConfirmationStep();
-      case 4:
+      case 3:
         return _buildWaitingStep();
       default:
-        return _buildOwnershipStep();
+        return _buildVehicleInfoStep();
     }
   }
 
@@ -136,54 +151,116 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
             'Informasi Kendaraan',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
+          SizedBox(height: 8),
+          Text(
+            'Lengkapi semua informasi kendaraan yang diperlukan',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
           SizedBox(height: 20),
-          _buildTextField(_regNumberController, 'Nomor Polisi *', Icons.confirmation_number),
-          _buildTextField(_brandController, 'Merek Kendaraan *', Icons.directions_car),
-          _buildTextField(_modelController, 'Model/Tipe *', Icons.category),
+          
+          // Informasi Dasar Kendaraan
+          _buildTextField(_regNumberController, 'Nomor Registrasi Resmi (NoPol/Tail/IMO) *', Icons.confirmation_number),
+          _buildDropdownField('Jenis Kendaraan *', _vehicleTypeController, [
+            'Mobil Penumpang', 'Mobil Barang', 'Sepeda Motor', 'Bus', 'Truk', 'Trailer', 'Kapal', 'Pesawat'
+          ], Icons.category),
+          _buildTextField(_brandController, 'Merek/Pabrikan *', Icons.directions_car),
+          _buildTextField(_modelController, 'Model/Tipe Kendaraan *', Icons.build_circle),
           _buildYearPicker(),
-          _buildTextField(_colorController, 'Warna', Icons.palette),
-          _buildTextField(_chassisController, 'Nomor Rangka', Icons.confirmation_number),
-          _buildTextField(_engineController, 'Nomor Mesin', Icons.build),
+          _buildTextField(_chassisController, 'Nomor Rangka/Kerangka/Hull *', Icons.confirmation_number),
+          _buildTextField(_engineController, 'Nomor Mesin/Serial Utama *', Icons.precision_manufacturing),
+          _buildTextField(_colorController, 'Warna Kendaraan *', Icons.palette),
+          _buildTextField(_capacityController, 'Kapasitas Muatan (kg/ton) *', Icons.scale),
+          
+          SizedBox(height: 24),
+          Text(
+            'Status Kepemilikan',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 12),
+          _buildDropdownField('Status Kepemilikan *', _ownershipStatusController, [
+            'Milik Sendiri', 'Sewa', 'Leasing', 'Kredit', 'Hibah'
+          ], Icons.business),
+          
+          SizedBox(height: 24),
+          Text(
+            'Informasi Asuransi',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 12),
+          _buildTextField(_insuranceCompanyController, 'Perusahaan Asuransi *', Icons.shield),
+          _buildTextField(_insurancePolicyController, 'Nomor Polis Asuransi *', Icons.policy),
+          _buildDatePicker('Tanggal Berakhir Asuransi *', _insuranceExpiryDate, (date) => setState(() => _insuranceExpiryDate = date)),
+          
+          SizedBox(height: 24),
+          Text(
+            'Riwayat Pemeliharaan',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 12),
+          _buildDatePicker('Tanggal Pemeliharaan Terakhir', _lastMaintenanceDate, (date) => setState(() => _lastMaintenanceDate = date)),
+          _buildTextField(_maintenanceNotesController, 'Catatan Pemeliharaan', Icons.note),
+          
+          SizedBox(height: 24),
+          Text(
+            'Status Operasional',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 12),
+          _buildDropdownField('Status Operasional *', TextEditingController(text: _operationalStatus), [
+            'active', 'inactive', 'maintenance', 'retired'
+          ], Icons.settings, onChanged: (value) => setState(() => _operationalStatus = value!)),
           
           SizedBox(height: 24),
           Divider(),
           SizedBox(height: 16),
           
           Text(
-            _ownershipType == 'personal' ? 'Data Pemilik' : 'Data Perusahaan',
+            'Data Pemilik',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 16),
           
-          if (_ownershipType == 'personal') ...[
-            _buildTextField(_ownerNameController, 'Nama Lengkap *', Icons.person),
-            _buildTextField(_ownerEmailController, 'Email *', Icons.email),
-            _buildTextField(_ownerPhoneController, 'Nomor Telepon', Icons.phone),
-          ] else ...[
-            _buildTextField(_companyNameController, 'Nama Perusahaan *', Icons.business),
-            _buildTextField(_companyAddressController, 'Alamat Perusahaan', Icons.location_on),
-            _buildTextField(_ownerNameController, 'Nama PIC *', Icons.person),
-            _buildTextField(_ownerEmailController, 'Email PIC *', Icons.email),
-            _buildTextField(_ownerPhoneController, 'Nomor Telepon PIC', Icons.phone),
-          ],
-          
-          SizedBox(height: 32),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => setState(() => _currentStep = 0),
-                  child: Text('Kembali'),
+                child: RadioListTile<String>(
+                  value: 'personal',
+                  groupValue: _ownershipType,
+                  onChanged: (value) => setState(() => _ownershipType = value!),
+                  title: Text('Pribadi'),
                 ),
               ),
-              SizedBox(width: 16),
               Expanded(
-                child: ElevatedButton(
-                  onPressed: _validateAndNext,
-                  child: Text('Lanjut ke Dokumen'),
+                child: RadioListTile<String>(
+                  value: 'company',
+                  groupValue: _ownershipType,
+                  onChanged: (value) => setState(() => _ownershipType = value!),
+                  title: Text('Perusahaan'),
                 ),
               ),
             ],
+          ),
+          
+          if (_ownershipType == 'personal') ...[
+            _buildTextField(_ownerNameController, 'Nama Lengkap *', Icons.person),
+            _buildTextField(_ownerEmailController, 'Email *', Icons.email),
+            _buildTextField(_ownerPhoneController, 'Nomor Telepon *', Icons.phone),
+            _buildTextField(_ownerAddressController, 'Alamat Lengkap *', Icons.location_on),
+          ] else ...[
+            _buildTextField(_companyNameController, 'Nama Perusahaan *', Icons.business),
+            _buildTextField(_companyAddressController, 'Alamat Perusahaan *', Icons.location_on),
+            _buildTextField(_ownerNameController, 'Nama PIC *', Icons.person),
+            _buildTextField(_ownerEmailController, 'Email PIC *', Icons.email),
+            _buildTextField(_ownerPhoneController, 'Nomor Telepon PIC *', Icons.phone),
+          ],
+          
+          SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _validateAndNext,
+              child: Text('Lanjut ke Upload Dokumen'),
+            ),
           ),
         ],
       ),
@@ -207,10 +284,34 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
           ),
           SizedBox(height: 24),
           
+          Text(
+            'Dokumen Wajib',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red[700]),
+          ),
+          SizedBox(height: 12),
           _buildDocumentUpload('STNK', 'stnk', Icons.description, true),
           _buildDocumentUpload('BPKB', 'bpkb', Icons.book, true),
           _buildDocumentUpload('KTP Pemilik', 'ktp', Icons.credit_card, true),
-          _buildDocumentUpload('Foto Kendaraan', 'vehicle_photo', Icons.camera_alt, true),
+          _buildDocumentUpload('Uji KIR', 'uji_kir', Icons.verified, true),
+          _buildDocumentUpload('Surat Polisi', 'surat_polisi', Icons.local_police, true),
+          _buildDocumentUpload('Dokumen Asuransi', 'asuransi', Icons.shield, true),
+          
+          SizedBox(height: 24),
+          Text(
+            'Foto Kendaraan (4 Sudut Pandang)',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue[700]),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Upload foto kendaraan dari 4 sudut untuk verifikasi kondisi',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+          SizedBox(height: 16),
+          
+          _buildDocumentUpload('Foto Depan Kendaraan', 'vehicle_photo_front', Icons.camera_alt, true),
+          _buildDocumentUpload('Foto Belakang Kendaraan', 'vehicle_photo_back', Icons.camera_alt, true),
+          _buildDocumentUpload('Foto Kanan Kendaraan', 'vehicle_photo_right', Icons.camera_alt, true),
+          _buildDocumentUpload('Foto Kiri Kendaraan', 'vehicle_photo_left', Icons.camera_alt, true),
           
           SizedBox(height: 32),
           Row(
@@ -268,7 +369,7 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Setelah mengirim registrasi, tim kami akan melakukan:\n\n• Verifikasi dokumen (1-2 hari kerja)\n• Inspeksi kendaraan (jika diperlukan)\n• Konfirmasi persetujuan\n\nAnda akan mendapat notifikasi melalui email.',
+                  'Setelah mengirim registrasi, tim kami akan melakukan:\n\n• Verifikasi dokumen (1-2 hari kerja)\n• Konfirmasi persetujuan\n\nAnda akan mendapat notifikasi melalui email.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.blue[700]),
                 ),
@@ -346,7 +447,7 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  '• Verifikasi dokumen: 1-2 hari kerja\n• Inspeksi kendaraan: 2-3 hari kerja\n• Konfirmasi hasil: 1 hari kerja\n\nTotal estimasi: 3-5 hari kerja',
+                  '• Verifikasi dokumen: 1-2 hari kerja\n• Konfirmasi hasil: 1 hari kerja\n\nTotal estimasi: 2-3 hari kerja',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.blue[700]),
                 ),
@@ -386,6 +487,71 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
           labelText: label,
           prefixIcon: Icon(icon),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(String label, TextEditingController controller, List<String> options, IconData icon, {Function(String?)? onChanged}) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: controller.text.isEmpty ? null : controller.text,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        items: options.map((option) => DropdownMenuItem(
+          value: option,
+          child: Text(option),
+        )).toList(),
+        onChanged: (value) {
+          controller.text = value ?? '';
+          if (onChanged != null) onChanged(value);
+        },
+      ),
+    );
+  }
+
+  Widget _buildDatePicker(String label, DateTime? selectedDate, Function(DateTime) onDateSelected) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () async {
+          final DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: selectedDate ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2030),
+          );
+          if (picked != null) {
+            onDateSelected(picked);
+          }
+        },
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[400]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  selectedDate != null 
+                    ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
+                    : label,
+                  style: TextStyle(
+                    color: selectedDate != null ? Colors.black : Colors.grey[600],
+                  ),
+                ),
+              ),
+              Icon(Icons.arrow_drop_down),
+            ],
+          ),
         ),
       ),
     );
@@ -478,38 +644,68 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
   }
 
   void _validateAndNext() {
+    // Validasi informasi kendaraan wajib
     if (_regNumberController.text.trim().isEmpty ||
+        _vehicleTypeController.text.trim().isEmpty ||
         _brandController.text.trim().isEmpty ||
         _modelController.text.trim().isEmpty ||
-        _selectedYear == null) {
-      _showError('Mohon lengkapi semua field kendaraan yang wajib');
+        _selectedYear == null ||
+        _chassisController.text.trim().isEmpty ||
+        _engineController.text.trim().isEmpty ||
+        _colorController.text.trim().isEmpty ||
+        _capacityController.text.trim().isEmpty) {
+      _showError('Mohon lengkapi semua informasi kendaraan yang wajib (*)'); 
       return;
     }
     
+    // Validasi status kepemilikan
+    if (_ownershipStatusController.text.trim().isEmpty) {
+      _showError('Mohon pilih status kepemilikan');
+      return;
+    }
+    
+    // Validasi informasi asuransi
+    if (_insuranceCompanyController.text.trim().isEmpty ||
+        _insurancePolicyController.text.trim().isEmpty ||
+        _insuranceExpiryDate == null) {
+      _showError('Mohon lengkapi informasi asuransi yang wajib');
+      return;
+    }
+    
+    // Validasi data pemilik
     if (_ownerNameController.text.trim().isEmpty ||
-        _ownerEmailController.text.trim().isEmpty) {
+        _ownerEmailController.text.trim().isEmpty ||
+        _ownerPhoneController.text.trim().isEmpty) {
       _showError('Mohon lengkapi data pemilik yang wajib');
       return;
     }
     
-    if (_ownershipType == 'company' && _companyNameController.text.trim().isEmpty) {
-      _showError('Mohon lengkapi nama perusahaan');
+    if (_ownershipType == 'personal' && _ownerAddressController.text.trim().isEmpty) {
+      _showError('Mohon lengkapi alamat pemilik');
+      return;
+    }
+    
+    if (_ownershipType == 'company' && 
+        (_companyNameController.text.trim().isEmpty || _companyAddressController.text.trim().isEmpty)) {
+      _showError('Mohon lengkapi data perusahaan yang wajib');
+      return;
+    }
+    
+    setState(() => _currentStep = 1);
+  }
+
+  void _validateDocuments() {
+    final requiredDocs = ['stnk', 'bpkb', 'ktp', 'uji_kir', 'surat_polisi', 'asuransi', 
+                         'vehicle_photo_front', 'vehicle_photo_back', 'vehicle_photo_right', 'vehicle_photo_left'];
+    final missingDocs = requiredDocs.where((doc) => _uploadedDocs[doc] == null).toList();
+    
+    if (missingDocs.isNotEmpty) {
+      final missingNames = missingDocs.map((doc) => _getDocumentTitle(doc)).join(', ');
+      _showError('Mohon upload dokumen yang masih kurang: $missingNames');
       return;
     }
     
     setState(() => _currentStep = 2);
-  }
-
-  void _validateDocuments() {
-    final requiredDocs = ['stnk', 'bpkb', 'ktp', 'vehicle_photo'];
-    final missingDocs = requiredDocs.where((doc) => _uploadedDocs[doc] == null).toList();
-    
-    if (missingDocs.isNotEmpty) {
-      _showError('Mohon upload semua dokumen yang diperlukan');
-      return;
-    }
-    
-    setState(() => _currentStep = 3);
   }
 
   void _selectYear() async {
@@ -586,7 +782,13 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
       case 'stnk': return 'STNK';
       case 'bpkb': return 'BPKB';
       case 'ktp': return 'KTP Pemilik';
-      case 'vehicle_photo': return 'Foto Kendaraan';
+      case 'uji_kir': return 'Uji KIR';
+      case 'surat_polisi': return 'Surat Polisi';
+      case 'asuransi': return 'Dokumen Asuransi';
+      case 'vehicle_photo_front': return 'Foto Depan Kendaraan';
+      case 'vehicle_photo_back': return 'Foto Belakang Kendaraan';
+      case 'vehicle_photo_right': return 'Foto Kanan Kendaraan';
+      case 'vehicle_photo_left': return 'Foto Kiri Kendaraan';
       default: return key;
     }
   }
@@ -609,16 +811,26 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
       final vehicleData = {
         'id': 'VH${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
         'registration_number': _regNumberController.text.trim(),
+        'vehicle_type': _vehicleTypeController.text.trim(),
         'brand': _brandController.text.trim(),
         'model': _modelController.text.trim(),
         'year': _selectedYear?.year.toString() ?? '',
-        'color': _colorController.text.trim(),
         'chassis_number': _chassisController.text.trim(),
         'engine_number': _engineController.text.trim(),
+        'color': _colorController.text.trim(),
+        'capacity_weight': _capacityController.text.trim(),
+        'ownership_status': _ownershipStatusController.text.trim(),
+        'operational_status': _operationalStatus,
+        'insurance_company': _insuranceCompanyController.text.trim(),
+        'insurance_policy_number': _insurancePolicyController.text.trim(),
+        'insurance_expiry_date': _insuranceExpiryDate?.toIso8601String(),
+        'last_maintenance_date': _lastMaintenanceDate?.toIso8601String(),
+        'maintenance_notes': _maintenanceNotesController.text.trim(),
         'ownership_type': _ownershipType,
         'owner_name': _ownerNameController.text.trim(),
         'owner_email': _ownerEmailController.text.trim(),
         'owner_phone': _ownerPhoneController.text.trim(),
+        'owner_address': _ownershipType == 'personal' ? _ownerAddressController.text.trim() : null,
         'company_name': _ownershipType == 'company' ? _companyNameController.text.trim() : null,
         'company_address': _ownershipType == 'company' ? _companyAddressController.text.trim() : null,
         'documents': _uploadedDocs,
@@ -657,23 +869,40 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
       _ownershipType = 'personal';
       
       _regNumberController.clear();
+      _vehicleTypeController.clear();
       _brandController.clear();
       _modelController.clear();
       _colorController.clear();
       _chassisController.clear();
       _engineController.clear();
+      _capacityController.clear();
+      _ownershipStatusController.clear();
+      _insuranceCompanyController.clear();
+      _insurancePolicyController.clear();
+      _maintenanceNotesController.clear();
       _ownerNameController.clear();
       _ownerEmailController.clear();
       _ownerPhoneController.clear();
+      _ownerAddressController.clear();
       _companyNameController.clear();
       _companyAddressController.clear();
+      
+      _insuranceExpiryDate = null;
+      _lastMaintenanceDate = null;
+      _operationalStatus = 'active';
       
       _uploadedDocs.clear();
       _uploadedDocs.addAll({
         'stnk': null,
         'bpkb': null,
         'ktp': null,
-        'vehicle_photo': null,
+        'uji_kir': null,
+        'surat_polisi': null,
+        'asuransi': null,
+        'vehicle_photo_front': null,
+        'vehicle_photo_right': null,
+        'vehicle_photo_left': null,
+        'vehicle_photo_back': null,
       });
     });
   }
@@ -681,14 +910,21 @@ class _VehicleRegistrationScreenState extends State<VehicleRegistrationScreen> {
   @override
   void dispose() {
     _regNumberController.dispose();
+    _vehicleTypeController.dispose();
     _brandController.dispose();
     _modelController.dispose();
     _colorController.dispose();
     _chassisController.dispose();
     _engineController.dispose();
+    _capacityController.dispose();
+    _ownershipStatusController.dispose();
+    _insuranceCompanyController.dispose();
+    _insurancePolicyController.dispose();
+    _maintenanceNotesController.dispose();
     _ownerNameController.dispose();
     _ownerEmailController.dispose();
     _ownerPhoneController.dispose();
+    _ownerAddressController.dispose();
     _companyNameController.dispose();
     _companyAddressController.dispose();
     super.dispose();

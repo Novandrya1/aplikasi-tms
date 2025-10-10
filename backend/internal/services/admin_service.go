@@ -57,7 +57,7 @@ func GetPendingVehicles(db *sql.DB) ([]map[string]interface{}, error) {
 		v["owner_email"] = email
 		v["owner_type"] = ownerType
 		v["days_waiting"] = daysWaiting
-		
+
 		// Set priority based on days waiting and status
 		priority := "normal"
 		if daysWaiting > 3 {
@@ -122,7 +122,7 @@ func GetAllVehiclesForAdmin(db *sql.DB) ([]map[string]interface{}, error) {
 		if verificationNotes.Valid {
 			v["verification_notes"] = verificationNotes.String
 		}
-		
+
 		v["company_name"] = companyName
 		v["owner_name"] = fullName
 		v["owner_email"] = email
@@ -164,7 +164,7 @@ func UpdateVehicleVerificationStatus(db *sql.DB, vehicleID int, status string, a
 	// Update operational status and substatus based on verification
 	operationalStatus := "inactive"
 	substatus := "initial"
-	
+
 	switch status {
 	case "approved":
 		operationalStatus = "active"
@@ -214,12 +214,12 @@ func UpdateVehicleVerificationStatus(db *sql.DB, vehicleID int, status string, a
 		notificationService := NewNotificationService(db)
 		templateKey := "approved"
 		extraVars := map[string]interface{}{}
-		
+
 		if status == "rejected" {
 			templateKey = "rejected"
 			extraVars["reason"] = adminNotes
 		}
-		
+
 		err := notificationService.SendVehicleNotification(vehicleID, templateKey, extraVars)
 		if err != nil {
 			log.Printf("Failed to send verification notification: %v", err)
@@ -295,14 +295,14 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 					 v.created_at, v.updated_at, v.created_by,
 					 EXTRACT(DAY FROM (CURRENT_TIMESTAMP - v.created_at)) as days_waiting
 					 FROM vehicles v WHERE v.id = $1`
-	
+
 	userQuery := `SELECT u.full_name, u.email, u.username FROM users u WHERE u.id = $1`
 
 	var vehicle map[string]interface{} = make(map[string]interface{})
-	
+
 	// Get vehicle data first
 	row := db.QueryRow(vehicleQuery, vehicleID)
-	
+
 	var id, year, daysWaiting, createdBy int
 	var capacityWeight float64
 	var regNumber, vehicleType, brand, model, chassisNumber, engineNumber, color string
@@ -315,14 +315,14 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 		&ownershipStatus, &operationalStatus, &verificationStatus, &verificationSubstatus,
 		&createdAt, &updatedAt, &createdBy, &daysWaiting,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("vehicle not found")
 		}
 		return nil, fmt.Errorf("failed to get vehicle: %v", err)
 	}
-	
+
 	// Get user data separately
 	var fullName, email, username string
 	userRow := db.QueryRow(userQuery, createdBy)
@@ -333,7 +333,7 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 		email = "unknown@example.com"
 		username = "unknown"
 	}
-	
+
 	// Map all vehicle fields
 	vehicle["id"] = id
 	vehicle["registration_number"] = regNumber
@@ -353,13 +353,13 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	vehicle["created_at"] = createdAt
 	vehicle["updated_at"] = updatedAt
 	vehicle["days_waiting"] = daysWaiting
-	
+
 	// Owner information from users table
 	vehicle["owner_name"] = fullName
 	vehicle["owner_email"] = email
 	vehicle["owner_username"] = username
 	vehicle["owner_type"] = "individual" // Default to individual
-	
+
 	// Default empty values for fleet owner fields
 	vehicle["company_name"] = ""
 	vehicle["business_license"] = ""
@@ -371,26 +371,26 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 	vehicle["insurance_policy_number"] = ""
 	vehicle["maintenance_notes"] = ""
 	vehicle["verification_notes"] = ""
-	
+
 	// Get user documents for this vehicle owner
 	log.Printf("DEBUG: Getting documents for user_id: %d", createdBy)
 	documentsQuery := `SELECT id, document_type, file_name, file_path, file_size, mime_type, 
 					   upload_status, verification_status, created_at
 					   FROM user_documents WHERE user_id = $1 ORDER BY created_at DESC`
-	
+
 	docRows, err := db.Query(documentsQuery, createdBy)
 	if err == nil {
 		defer docRows.Close()
 		var documents []map[string]interface{}
-		
+
 		for docRows.Next() {
 			var doc map[string]interface{} = make(map[string]interface{})
 			var id int
 			var docType, fileName, filePath, uploadStatus, verificationStatus string
 			var fileSize int64
 			var mimeType, createdAt string
-			
-			err := docRows.Scan(&id, &docType, &fileName, &filePath, &fileSize, &mimeType, 
+
+			err := docRows.Scan(&id, &docType, &fileName, &filePath, &fileSize, &mimeType,
 				&uploadStatus, &verificationStatus, &createdAt)
 			if err == nil {
 				doc["id"] = id
@@ -411,13 +411,13 @@ func GetVehicleDetailsForAdmin(db *sql.DB, vehicleID int) (map[string]interface{
 		vehicle["documents"] = []map[string]interface{}{}
 		log.Printf("DEBUG: Error getting documents: %v", err)
 	}
-	
+
 	// Debug log final owner data
 	if docs, ok := vehicle["documents"].([]map[string]interface{}); ok {
-		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=%d", 
+		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=%d",
 			vehicleID, vehicle["owner_name"], vehicle["owner_email"], vehicle["owner_username"], len(docs))
 	} else {
-		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=null", 
+		log.Printf("Final owner data for vehicle %d: name=%s, email=%s, username=%s, docs=null",
 			vehicleID, vehicle["owner_name"], vehicle["owner_email"], vehicle["owner_username"])
 	}
 
@@ -472,65 +472,6 @@ func GetVerificationHistory(db *sql.DB, vehicleID int) ([]map[string]interface{}
 	}
 
 	return history, nil
-}
-
-func GetApprovedVehicles(db *sql.DB) ([]map[string]interface{}, error) {
-	query := `SELECT v.id, v.registration_number, v.vehicle_type, v.brand, v.model, v.year,
-			  v.verification_status, v.operational_status, v.created_at, v.verified_at, v.admin_notes,
-			  COALESCE(fo.company_name, '') as company_name, 
-			  COALESCE(u.full_name, '') as full_name, 
-			  COALESCE(u.email, '') as email
-			  FROM vehicles v
-			  LEFT JOIN fleet_owners fo ON v.fleet_owner_id = fo.id
-			  LEFT JOIN users u ON fo.user_id = u.id
-			  WHERE v.verification_status = 'approved'
-			  ORDER BY v.created_at DESC`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get approved vehicles: %s", strings.ReplaceAll(err.Error(), "\n", " "))
-	}
-	defer rows.Close()
-
-	var vehicles []map[string]interface{}
-	for rows.Next() {
-		var v map[string]interface{} = make(map[string]interface{})
-		var id, year int
-		var regNumber, vehicleType, brand, model, verificationStatus, operationalStatus, companyName, fullName, email string
-		var createdAt string
-		var verifiedAt sql.NullString
-		var adminNotes sql.NullString
-
-		err := rows.Scan(&id, &regNumber, &vehicleType, &brand, &model, &year,
-			&verificationStatus, &operationalStatus, &createdAt, &verifiedAt, &adminNotes,
-			&companyName, &fullName, &email)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan vehicle: %s", strings.ReplaceAll(err.Error(), "\n", " "))
-		}
-
-		v["id"] = id
-		v["registration_number"] = regNumber
-		v["vehicle_type"] = vehicleType
-		v["brand"] = brand
-		v["model"] = model
-		v["year"] = year
-		v["verification_status"] = verificationStatus
-		v["operational_status"] = operationalStatus
-		v["created_at"] = createdAt
-		if verifiedAt.Valid {
-			v["verified_at"] = verifiedAt.String
-		}
-		if adminNotes.Valid {
-			v["admin_notes"] = adminNotes.String
-		}
-		v["company_name"] = companyName
-		v["owner_name"] = fullName
-		v["owner_email"] = email
-
-		vehicles = append(vehicles, v)
-	}
-
-	return vehicles, nil
 }
 
 // Enhanced admin verification functions
@@ -588,7 +529,7 @@ func GetVehiclesByStatus(db *sql.DB, status string) ([]map[string]interface{}, e
 		v["owner_email"] = email
 		v["owner_type"] = ownerType
 		v["days_waiting"] = daysWaiting
-		
+
 		if verifiedAt.Valid {
 			v["verified_at"] = verifiedAt.String
 		}
@@ -606,7 +547,7 @@ func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
 	dashboard := make(map[string]interface{})
 
 	// Get counts by status
-	
+
 	statusQuery := `SELECT 
 		COUNT(CASE WHEN (verification_status IN ('pending', 'submitted') OR verification_substatus IN ('awaiting_review', 'needs_correction', 'under_review')) THEN 1 END) as pending_count,
 		COUNT(CASE WHEN verification_substatus = 'needs_correction' THEN 1 END) as needs_correction_count,
@@ -718,10 +659,10 @@ func GetAdminVerificationDashboard(db *sql.DB) (map[string]interface{}, error) {
 
 func PerformCrossCheck(db *sql.DB, vehicleID int, checkType string) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
-	
+
 	// Get vehicle details for cross-checking
 	var regNumber, chassisNumber, engineNumber string
-	err := db.QueryRow("SELECT registration_number, chassis_number, engine_number FROM vehicles WHERE id = $1", 
+	err := db.QueryRow("SELECT registration_number, chassis_number, engine_number FROM vehicles WHERE id = $1",
 		vehicleID).Scan(&regNumber, &chassisNumber, &engineNumber)
 	if err != nil {
 		return nil, fmt.Errorf("vehicle not found: %v", err)
@@ -743,11 +684,11 @@ func PerformCrossCheck(db *sql.DB, vehicleID int, checkType string) (map[string]
 	// Store cross-check result in database
 	insertQuery := `INSERT INTO fraud_checks (vehicle_id, check_type, result, confidence_score, details)
 		VALUES ($1, $2, $3, $4, $5)`
-	
+
 	confidence := result["confidence"].(float64)
 	status := result["status"].(string)
 	details, _ := json.Marshal(result["details"])
-	
+
 	_, err = db.Exec(insertQuery, vehicleID, checkType, status, confidence, string(details))
 	if err != nil {
 		log.Printf("Failed to store cross-check result: %v", err)
@@ -765,9 +706,9 @@ func performSamsatCheck(regNumber string) map[string]interface{} {
 	result["message"] = fmt.Sprintf("Nomor polisi %s terdaftar dan pajak aktif", regNumber)
 	result["details"] = map[string]interface{}{
 		"registration_valid": true,
-		"tax_status": "active",
-		"last_tax_payment": "2024-01-15",
-		"next_due_date": "2025-01-15",
+		"tax_status":         "active",
+		"last_tax_payment":   "2024-01-15",
+		"next_due_date":      "2025-01-15",
 	}
 	return result
 }
@@ -780,9 +721,9 @@ func performKIRCheck(regNumber string) map[string]interface{} {
 	result["confidence"] = 0.90
 	result["message"] = "Kendaraan memiliki KIR yang masih berlaku"
 	result["details"] = map[string]interface{}{
-		"kir_valid": true,
-		"issue_date": "2024-06-01",
-		"expiry_date": "2025-06-01",
+		"kir_valid":          true,
+		"issue_date":         "2024-06-01",
+		"expiry_date":        "2025-06-01",
 		"inspection_station": "Dishub Jakarta Pusat",
 	}
 	return result
@@ -796,44 +737,44 @@ func performInsuranceCheck(regNumber string) map[string]interface{} {
 	result["confidence"] = 0.88
 	result["message"] = "Asuransi aktif dan sesuai dengan data kendaraan"
 	result["details"] = map[string]interface{}{
-		"policy_active": true,
+		"policy_active":     true,
 		"insurance_company": "Asuransi Jasa Indonesia",
-		"policy_number": "AJI-2024-001234",
-		"coverage_type": "comprehensive",
-		"expiry_date": "2025-03-15",
+		"policy_number":     "AJI-2024-001234",
+		"coverage_type":     "comprehensive",
+		"expiry_date":       "2025-03-15",
 	}
 	return result
 }
 
 func performDuplicateCheck(db *sql.DB, regNumber, chassisNumber, engineNumber string, excludeVehicleID int) map[string]interface{} {
 	result := make(map[string]interface{})
-	
+
 	// Check for duplicate registration number
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE registration_number = $1 AND id != $2", 
+	err := db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE registration_number = $1 AND id != $2",
 		regNumber, excludeVehicleID).Scan(&count)
-	
+
 	duplicateFound := false
 	duplicateType := ""
-	
+
 	if err == nil && count > 0 {
 		duplicateFound = true
 		duplicateType = "registration_number"
 	}
-	
+
 	// Check for duplicate chassis number
 	if !duplicateFound {
-		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE chassis_number = $1 AND id != $2", 
+		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE chassis_number = $1 AND id != $2",
 			chassisNumber, excludeVehicleID).Scan(&count)
 		if err == nil && count > 0 {
 			duplicateFound = true
 			duplicateType = "chassis_number"
 		}
 	}
-	
+
 	// Check for duplicate engine number
 	if !duplicateFound {
-		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE engine_number = $1 AND id != $2", 
+		err = db.QueryRow("SELECT COUNT(*) FROM vehicles WHERE engine_number = $1 AND id != $2",
 			engineNumber, excludeVehicleID).Scan(&count)
 		if err == nil && count > 0 {
 			duplicateFound = true
@@ -848,7 +789,7 @@ func performDuplicateCheck(db *sql.DB, regNumber, chassisNumber, engineNumber st
 		result["message"] = fmt.Sprintf("Ditemukan duplikasi %s", duplicateType)
 		result["details"] = map[string]interface{}{
 			"duplicate_found": true,
-			"duplicate_type": duplicateType,
+			"duplicate_type":  duplicateType,
 			"duplicate_count": count,
 		}
 	} else {
@@ -859,7 +800,7 @@ func performDuplicateCheck(db *sql.DB, regNumber, chassisNumber, engineNumber st
 			"duplicate_found": false,
 		}
 	}
-	
+
 	return result
 }
 
@@ -886,7 +827,7 @@ func UpdateVehicleWithCorrection(db *sql.DB, vehicleID int, correctionItems []st
 	historyQuery := `INSERT INTO verification_history 
 		(vehicle_id, admin_id, previous_status, new_status, verification_substatus, admin_notes, correction_items)
 		VALUES ($1, $2, 'pending', 'needs_correction', 'needs_correction', $3, $4)`
-	
+
 	correctionJSON, _ := json.Marshal(correctionItems)
 	_, err = tx.Exec(historyQuery, vehicleID, adminID, adminNotes, string(correctionJSON))
 	if err != nil {
@@ -919,7 +860,7 @@ func ScheduleInspection(db *sql.DB, vehicleID int, inspectionDate time.Time, loc
 	inspectionQuery := `INSERT INTO vehicle_inspections 
 		(vehicle_id, inspector_id, inspection_type, scheduled_at, location, result)
 		VALUES ($1, $2, 'physical', $3, $4, 'pending')`
-	
+
 	_, err = tx.Exec(inspectionQuery, vehicleID, adminID, inspectionDate, location)
 	if err != nil {
 		return fmt.Errorf("failed to create inspection record: %v", err)
@@ -981,17 +922,17 @@ func GetVehicleAttachments(db *sql.DB, vehicleID int) ([]map[string]interface{},
 	if err == nil {
 		userDocsQuery := `SELECT id, document_type, file_name, file_path, file_size, mime_type, created_at
 					   FROM user_documents WHERE user_id = $1 ORDER BY created_at DESC`
-		
+
 		userRows, err := db.Query(userDocsQuery, createdBy)
 		if err == nil {
 			defer userRows.Close()
-			
+
 			for userRows.Next() {
 				var attachment map[string]interface{} = make(map[string]interface{})
 				var id int
 				var docType, fileName, filePath, mimeType, createdAt string
 				var fileSize int64
-				
+
 				err := userRows.Scan(&id, &docType, &fileName, &filePath, &fileSize, &mimeType, &createdAt)
 				if err == nil {
 					attachment["id"] = id

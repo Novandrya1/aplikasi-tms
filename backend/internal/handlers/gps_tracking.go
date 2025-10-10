@@ -77,7 +77,7 @@ func (h *GPSTrackingHandler) GetLatestPositions(c *gin.Context) {
 func (h *GPSTrackingHandler) GetTrackingHistory(c *gin.Context) {
 	deviceID := c.Param("deviceId")
 	hoursStr := c.DefaultQuery("hours", "24")
-	
+
 	hours, err := strconv.Atoi(hoursStr)
 	if err != nil || hours < 1 || hours > 168 { // Max 1 week
 		hours = 24

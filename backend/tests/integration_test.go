@@ -14,13 +14,13 @@ import (
 func setupTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	
+
 	api := router.Group("/api/v1")
 	{
 		api.POST("/auth/login", testLoginHandler)
 		api.GET("/health", testHealthHandler)
 	}
-	
+
 	return router
 }
 
@@ -36,12 +36,12 @@ func testLoginHandler(c *gin.Context) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	
+
 	if req.Email == "test@tms.com" && req.Password == "password" {
 		token, _ := auth.GenerateToken(1, "testuser", "user")
 		c.JSON(http.StatusOK, gin.H{
@@ -61,18 +61,18 @@ func testLoginHandler(c *gin.Context) {
 
 func TestHealthEndpoint(t *testing.T) {
 	router := setupTestRouter()
-	
+
 	req, _ := http.NewRequest("GET", "/api/v1/health", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Fatalf("Expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
-	
+
 	if response["status"] != "ok" {
 		t.Fatal("Expected status to be 'ok'")
 	}
@@ -80,26 +80,26 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestLoginEndpoint(t *testing.T) {
 	router := setupTestRouter()
-	
+
 	loginData := map[string]string{
 		"email":    "test@tms.com",
 		"password": "password",
 	}
-	
+
 	jsonData, _ := json.Marshal(loginData)
 	req, _ := http.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-	
+
 	if w.Code != http.StatusOK {
 		t.Fatalf("Expected status 200, got %d", w.Code)
 	}
-	
+
 	var response map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &response)
-	
+
 	if response["token"] == nil {
 		t.Fatal("Expected token in response")
 	}

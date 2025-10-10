@@ -11,39 +11,39 @@ import (
 type OCRService struct{}
 
 type STNKData struct {
-	PlateNumber    string                 `json:"plate_number"`
-	OwnerName      string                 `json:"owner_name"`
-	NIK            string                 `json:"nik"`
-	Address        string                 `json:"address"`
-	VehicleBrand   string                 `json:"vehicle_brand"`
-	VehicleModel   string                 `json:"vehicle_model"`
-	VehicleYear    string                 `json:"vehicle_year"`
-	ChassisNumber  string                 `json:"chassis_number"`
-	EngineNumber   string                 `json:"engine_number"`
-	VehicleColor   string                 `json:"vehicle_color"`
-	ExpiryDate     string                 `json:"expiry_date"`
-	IssueDate      string                 `json:"issue_date"`
-	ConfidenceScore float64               `json:"confidence_score"`
-	ExtractedFields []ExtractedField      `json:"extracted_fields"`
+	PlateNumber     string           `json:"plate_number"`
+	OwnerName       string           `json:"owner_name"`
+	NIK             string           `json:"nik"`
+	Address         string           `json:"address"`
+	VehicleBrand    string           `json:"vehicle_brand"`
+	VehicleModel    string           `json:"vehicle_model"`
+	VehicleYear     string           `json:"vehicle_year"`
+	ChassisNumber   string           `json:"chassis_number"`
+	EngineNumber    string           `json:"engine_number"`
+	VehicleColor    string           `json:"vehicle_color"`
+	ExpiryDate      string           `json:"expiry_date"`
+	IssueDate       string           `json:"issue_date"`
+	ConfidenceScore float64          `json:"confidence_score"`
+	ExtractedFields []ExtractedField `json:"extracted_fields"`
 }
 
 type KTPData struct {
-	NIK           string  `json:"nik"`
-	Name          string  `json:"name"`
-	BirthPlace    string  `json:"birth_place"`
-	BirthDate     string  `json:"birth_date"`
-	Gender        string  `json:"gender"`
-	Address       string  `json:"address"`
-	RTRW          string  `json:"rt_rw"`
-	Village       string  `json:"village"`
-	District      string  `json:"district"`
-	City          string  `json:"city"`
-	Province      string  `json:"province"`
-	Religion      string  `json:"religion"`
-	MaritalStatus string  `json:"marital_status"`
-	Occupation    string  `json:"occupation"`
-	Nationality   string  `json:"nationality"`
-	ExpiryDate    string  `json:"expiry_date"`
+	NIK             string  `json:"nik"`
+	Name            string  `json:"name"`
+	BirthPlace      string  `json:"birth_place"`
+	BirthDate       string  `json:"birth_date"`
+	Gender          string  `json:"gender"`
+	Address         string  `json:"address"`
+	RTRW            string  `json:"rt_rw"`
+	Village         string  `json:"village"`
+	District        string  `json:"district"`
+	City            string  `json:"city"`
+	Province        string  `json:"province"`
+	Religion        string  `json:"religion"`
+	MaritalStatus   string  `json:"marital_status"`
+	Occupation      string  `json:"occupation"`
+	Nationality     string  `json:"nationality"`
+	ExpiryDate      string  `json:"expiry_date"`
 	ConfidenceScore float64 `json:"confidence_score"`
 }
 
@@ -54,19 +54,19 @@ type ExtractedField struct {
 }
 
 type FaceMatchResult struct {
-	MatchScore   float64                `json:"match_score"`
-	IsMatch      bool                   `json:"is_match"`
-	Confidence   string                 `json:"confidence"`
-	Threshold    float64                `json:"threshold"`
-	Details      map[string]interface{} `json:"details"`
+	MatchScore float64                `json:"match_score"`
+	IsMatch    bool                   `json:"is_match"`
+	Confidence string                 `json:"confidence"`
+	Threshold  float64                `json:"threshold"`
+	Details    map[string]interface{} `json:"details"`
 }
 
 type QualityResult struct {
-	OverallQuality string                 `json:"overall_quality"`
-	QualityScore   float64                `json:"quality_score"`
-	Issues         []string               `json:"issues"`
-	Recommendations []string              `json:"recommendations"`
-	Checks         map[string]interface{} `json:"checks"`
+	OverallQuality  string                 `json:"overall_quality"`
+	QualityScore    float64                `json:"quality_score"`
+	Issues          []string               `json:"issues"`
+	Recommendations []string               `json:"recommendations"`
+	Checks          map[string]interface{} `json:"checks"`
 }
 
 func NewOCRService() *OCRService {
@@ -82,20 +82,20 @@ func (s *OCRService) ExtractSTNKData(base64Image string) (*STNKData, error) {
 
 	// For demo purposes, return mock data with some randomization
 	// In production, this would call actual OCR service (Google Vision, AWS Textract, etc.)
-	
+
 	mockData := &STNKData{
-		PlateNumber:    s.generateMockPlateNumber(),
-		OwnerName:      "AHMAD SURYANTO",
-		NIK:            "3201234567890123",
-		Address:        "JL. MERDEKA NO. 123, JAKARTA",
-		VehicleBrand:   "TOYOTA",
-		VehicleModel:   "AVANZA",
-		VehicleYear:    "2020",
-		ChassisNumber:  "MHKA1BA1HKK123456",
-		EngineNumber:   "3SZ1234567",
-		VehicleColor:   "HITAM",
-		ExpiryDate:     "2025-12-31",
-		IssueDate:      "2020-01-15",
+		PlateNumber:     s.generateMockPlateNumber(),
+		OwnerName:       "AHMAD SURYANTO",
+		NIK:             "3201234567890123",
+		Address:         "JL. MERDEKA NO. 123, JAKARTA",
+		VehicleBrand:    "TOYOTA",
+		VehicleModel:    "AVANZA",
+		VehicleYear:     "2020",
+		ChassisNumber:   "MHKA1BA1HKK123456",
+		EngineNumber:    "3SZ1234567",
+		VehicleColor:    "HITAM",
+		ExpiryDate:      "2025-12-31",
+		IssueDate:       "2020-01-15",
 		ConfidenceScore: 0.92,
 		ExtractedFields: []ExtractedField{
 			{Field: "plate_number", Value: "L1234AB", Confidence: 0.95},
@@ -115,22 +115,22 @@ func (s *OCRService) ExtractKTPData(base64Image string) (*KTPData, error) {
 	}
 
 	mockData := &KTPData{
-		NIK:           "3201234567890123",
-		Name:          "AHMAD SURYANTO",
-		BirthPlace:    "JAKARTA",
-		BirthDate:     "1985-05-15",
-		Gender:        "LAKI-LAKI",
-		Address:       "JL. MERDEKA NO. 123",
-		RTRW:          "001/002",
-		Village:       "MENTENG",
-		District:      "MENTENG",
-		City:          "JAKARTA PUSAT",
-		Province:      "DKI JAKARTA",
-		Religion:      "ISLAM",
-		MaritalStatus: "KAWIN",
-		Occupation:    "KARYAWAN SWASTA",
-		Nationality:   "WNI",
-		ExpiryDate:    "2030-05-15",
+		NIK:             "3201234567890123",
+		Name:            "AHMAD SURYANTO",
+		BirthPlace:      "JAKARTA",
+		BirthDate:       "1985-05-15",
+		Gender:          "LAKI-LAKI",
+		Address:         "JL. MERDEKA NO. 123",
+		RTRW:            "001/002",
+		Village:         "MENTENG",
+		District:        "MENTENG",
+		City:            "JAKARTA PUSAT",
+		Province:        "DKI JAKARTA",
+		Religion:        "ISLAM",
+		MaritalStatus:   "KAWIN",
+		Occupation:      "KARYAWAN SWASTA",
+		Nationality:     "WNI",
+		ExpiryDate:      "2030-05-15",
 		ConfidenceScore: 0.89,
 	}
 
@@ -150,10 +150,10 @@ func (s *OCRService) PerformFaceMatch(selfieBase64, ktpBase64 string) (*FaceMatc
 		Confidence: "high",
 		Threshold:  0.75,
 		Details: map[string]interface{}{
-			"face_detected_selfie":   true,
-			"face_detected_ktp":      true,
-			"quality_score_selfie":   0.92,
-			"quality_score_ktp":      0.85,
+			"face_detected_selfie": true,
+			"face_detected_ktp":    true,
+			"quality_score_selfie": 0.92,
+			"quality_score_ktp":    0.85,
 		},
 	}
 
@@ -167,9 +167,9 @@ func (s *OCRService) ValidateDocumentQuality(base64Image, documentType string) (
 	}
 
 	result := &QualityResult{
-		OverallQuality: "good",
-		QualityScore:   0.88,
-		Issues:         []string{},
+		OverallQuality:  "good",
+		QualityScore:    0.88,
+		Issues:          []string{},
 		Recommendations: []string{},
 		Checks: map[string]interface{}{
 			"brightness": map[string]interface{}{
@@ -265,12 +265,12 @@ func (s *OCRService) isValidBase64Image(base64Str string) bool {
 	if !strings.HasPrefix(base64Str, "data:image/") {
 		return false
 	}
-	
+
 	parts := strings.Split(base64Str, ",")
 	if len(parts) != 2 {
 		return false
 	}
-	
+
 	_, err := base64.StdEncoding.DecodeString(parts[1])
 	return err == nil
 }
@@ -280,11 +280,11 @@ func (s *OCRService) generateMockPlateNumber() string {
 	prefixes := []string{"L", "B", "D", "F", "N", "AA", "AB"}
 	numbers := []string{"1234", "5678", "9012", "3456"}
 	suffixes := []string{"AB", "CD", "EF", "GH", "XY"}
-	
+
 	prefix := prefixes[time.Now().Second()%len(prefixes)]
 	number := numbers[time.Now().Minute()%len(numbers)]
 	suffix := suffixes[time.Now().Hour()%len(suffixes)]
-	
+
 	return fmt.Sprintf("%s%s%s", prefix, number, suffix)
 }
 

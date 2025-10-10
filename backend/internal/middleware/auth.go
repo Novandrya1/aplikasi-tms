@@ -57,7 +57,7 @@ func AdminRequired() gin.HandlerFunc {
 			// Log unauthorized admin access attempt
 			userID, _ := c.Get("user_id")
 			username, _ := c.Get("username")
-			
+
 			// Safe type assertion untuk username
 			var usernameStr string
 			if uname, ok := username.(string); ok {
@@ -65,8 +65,8 @@ func AdminRequired() gin.HandlerFunc {
 			} else {
 				usernameStr = "unknown"
 			}
-			
-			log.Printf("Unauthorized admin access attempt - UserID: %v, Username: %s, IP: %s", 
+
+			log.Printf("Unauthorized admin access attempt - UserID: %v, Username: %s, IP: %s",
 				userID, SanitizeForLog(usernameStr), SanitizeForLog(c.ClientIP()))
 			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
 			c.Abort()

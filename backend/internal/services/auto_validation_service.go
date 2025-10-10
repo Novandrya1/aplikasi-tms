@@ -22,9 +22,9 @@ func NewAutoValidationService(db *sql.DB) *AutoValidationService {
 func (s *AutoValidationService) ValidateVehicle(vehicleID int) (*models.AutoValidationResult, error) {
 	result := &models.AutoValidationResult{
 		OverallStatus:   "pending",
-		Checks:         []models.ValidationCheck{},
+		Checks:          []models.ValidationCheck{},
 		ConfidenceScore: 0.0,
-		ProcessedAt:    time.Now(),
+		ProcessedAt:     time.Now(),
 	}
 
 	// Get vehicle data
@@ -123,9 +123,9 @@ func (s *AutoValidationService) validatePlateNumber(plateNumber string) models.V
 
 	// Indonesian plate format: 1-2 letters + 1-4 digits + 1-3 letters
 	plateRegex := regexp.MustCompile(`^[A-Z]{1,2}\s*\d{1,4}\s*[A-Z]{1,3}$`)
-	
+
 	cleanPlate := strings.ToUpper(strings.ReplaceAll(plateNumber, " ", ""))
-	
+
 	if plateRegex.MatchString(cleanPlate) {
 		check.Status = "passed"
 		check.Confidence = 0.9
@@ -149,7 +149,7 @@ func (s *AutoValidationService) validateVIN(chassisNumber string) models.Validat
 
 	// Basic VIN validation (17 characters, alphanumeric, no I, O, Q)
 	vinRegex := regexp.MustCompile(`^[A-HJ-NPR-Z0-9]{17}$`)
-	
+
 	if len(chassisNumber) == 17 && vinRegex.MatchString(strings.ToUpper(chassisNumber)) {
 		check.Status = "passed"
 		check.Confidence = 0.8
@@ -261,10 +261,10 @@ func (s *AutoValidationService) determineOverallStatus(checks []models.Validatio
 
 func (s *AutoValidationService) getVehicleData(vehicleID int) (map[string]interface{}, error) {
 	query := `SELECT id, registration_number, chassis_number, engine_number FROM vehicles WHERE id = $1`
-	
+
 	var id int
 	var regNumber, chassisNumber, engineNumber string
-	
+
 	err := s.db.QueryRow(query, vehicleID).Scan(&id, &regNumber, &chassisNumber, &engineNumber)
 	if err != nil {
 		return nil, err
@@ -273,14 +273,14 @@ func (s *AutoValidationService) getVehicleData(vehicleID int) (map[string]interf
 	return map[string]interface{}{
 		"id":                  id,
 		"registration_number": regNumber,
-		"chassis_number":     chassisNumber,
-		"engine_number":      engineNumber,
+		"chassis_number":      chassisNumber,
+		"engine_number":       engineNumber,
 	}, nil
 }
 
 func (s *AutoValidationService) getVehicleAttachments(vehicleID int) ([]map[string]interface{}, error) {
 	query := `SELECT attachment_type, file_name, ocr_data FROM vehicle_attachments WHERE vehicle_id = $1`
-	
+
 	rows, err := s.db.Query(query, vehicleID)
 	if err != nil {
 		return nil, err
@@ -291,7 +291,7 @@ func (s *AutoValidationService) getVehicleAttachments(vehicleID int) ([]map[stri
 	for rows.Next() {
 		var attType, fileName string
 		var ocrData sql.NullString
-		
+
 		err := rows.Scan(&attType, &fileName, &ocrData)
 		if err != nil {
 			continue
@@ -299,13 +299,13 @@ func (s *AutoValidationService) getVehicleAttachments(vehicleID int) ([]map[stri
 
 		att := map[string]interface{}{
 			"attachment_type": attType,
-			"file_name":      fileName,
+			"file_name":       fileName,
 		}
-		
+
 		if ocrData.Valid {
 			att["ocr_data"] = ocrData.String
 		}
-		
+
 		attachments = append(attachments, att)
 	}
 

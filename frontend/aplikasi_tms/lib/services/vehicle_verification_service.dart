@@ -43,31 +43,18 @@ class VehicleVerificationService {
 
   void updateVerificationStatus(String id, String status, {
     String? notes,
-    DateTime? inspectionDate,
     String? verifiedBy,
-    Map<String, dynamic>? inspectionReport,
   }) {
     final index = _pendingVerifications.indexWhere((v) => v['id'] == id);
     if (index != -1) {
       _pendingVerifications[index]['status'] = status;
       if (notes != null) _pendingVerifications[index]['notes'] = notes;
-      if (inspectionDate != null) _pendingVerifications[index]['inspectionDate'] = inspectionDate.toIso8601String();
       if (verifiedBy != null) _pendingVerifications[index]['verifiedBy'] = verifiedBy;
-      if (inspectionReport != null) _pendingVerifications[index]['inspectionReport'] = inspectionReport;
       _pendingVerifications[index]['updatedAt'] = DateTime.now().toIso8601String();
       
       _saveToStorage();
       _updatePendingCount();
     }
-  }
-
-  void scheduleInspection(String id, DateTime inspectionDate, String notes) {
-    updateVerificationStatus(
-      id, 
-      'inspection_scheduled',
-      inspectionDate: inspectionDate,
-      notes: notes,
-    );
   }
 
   void approveVerification(String id, String verifiedBy) {
@@ -86,7 +73,6 @@ class VehicleVerificationService {
       'verification_status': verification['status'],
       'verified_by': verification['verifiedBy'],
       'verified_at': DateTime.now().toIso8601String(),
-      'inspection_report': verification['inspectionReport'],
       'notes': verification['notes'],
       'management_status': 'active',
     };
@@ -104,22 +90,7 @@ class VehicleVerificationService {
     _moveToVehicleManagement(id);
   }
 
-  void startInspection(String id, String inspector) {
-    updateVerificationStatus(
-      id, 
-      'in_progress',
-      verifiedBy: inspector,
-    );
-  }
 
-  void completeInspection(String id, Map<String, dynamic> inspectionReport, String inspector) {
-    updateVerificationStatus(
-      id, 
-      'inspection_completed',
-      inspectionReport: inspectionReport,
-      verifiedBy: inspector,
-    );
-  }
 
   List<Map<String, dynamic>> getVerificationsByStatus(String status) {
     return _pendingVerifications.where((v) => v['status'] == status).toList();
@@ -157,10 +128,7 @@ class VehicleVerificationService {
 
   void _updatePendingCount() {
     pendingCount.value = _pendingVerifications.where((v) => 
-      v['status'] == 'pending' || 
-      v['status'] == 'inspection_scheduled' || 
-      v['status'] == 'in_progress' ||
-      v['status'] == 'inspection_completed'
+      v['status'] == 'pending'
     ).length;
   }
 }

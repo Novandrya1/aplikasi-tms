@@ -13,13 +13,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/youruser/aplikasi-tms/backend/internal/db"
 	"github.com/youruser/aplikasi-tms/backend/internal/auth"
+	"github.com/youruser/aplikasi-tms/backend/internal/db"
+	"github.com/youruser/aplikasi-tms/backend/internal/handlers"
 	"github.com/youruser/aplikasi-tms/backend/internal/middleware"
 	"github.com/youruser/aplikasi-tms/backend/internal/models"
-	"github.com/youruser/aplikasi-tms/backend/internal/services"
 	"github.com/youruser/aplikasi-tms/backend/internal/repository"
-	"github.com/youruser/aplikasi-tms/backend/internal/handlers"
+	"github.com/youruser/aplikasi-tms/backend/internal/services"
 )
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	if allowedOrigins == "" {
 		allowedOrigins = "http://localhost:3000,http://localhost:3001,http://localhost:3005,http://localhost:3006,http://localhost:4000,http://0.0.0.0:3005"
 	}
-	
+
 	// Simple CORS - allow all
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -57,16 +57,16 @@ func main() {
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Next()
 	})
-	
+
 	// CSRF Protection disabled for development
 	// Will be enabled per-endpoint basis for sensitive operations
-	
+
 	// Performance middleware disabled for debugging
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
+			"status":  "ok",
 			"message": "TMS Backend is running",
 		})
 	})
@@ -79,41 +79,41 @@ func main() {
 				"message": "pong",
 			})
 		})
-		
+
 		api.GET("/db-status", func(c *gin.Context) {
 			conn, err := db.Connect()
 			if err != nil {
 				log.Printf("Database connection error: %v", middleware.SanitizeForLog(err.Error()))
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"status": "error",
+					"status":  "error",
 					"message": "Database connection failed",
 				})
 				return
 			}
 			defer conn.Close()
-			
+
 			var count int
 			query := "SELECT COUNT(*) FROM users"
 			err = conn.QueryRow(query).Scan(&count)
 			if err != nil {
 				log.Printf("Database query error: %v", middleware.SanitizeForLog(err.Error()))
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"status": "error",
+					"status":  "error",
 					"message": "Database query failed",
 				})
 				return
 			}
-			
+
 			c.JSON(http.StatusOK, gin.H{
-				"status": "ok",
-				"message": "Database connected successfully",
+				"status":      "ok",
+				"message":     "Database connected successfully",
 				"users_count": count,
 			})
 		})
-		
+
 		api.POST("/register", registerHandler)
 		api.POST("/login", loginHandler)
-		
+
 		// Vehicle endpoints
 		api.POST("/vehicles", middleware.AuthRequired(), createVehicleHandler)
 		api.GET("/approved-vehicles", getApprovedVehiclesPublicHandler)
@@ -121,34 +121,34 @@ func main() {
 		api.GET("/vehicles/:id", getVehicleHandler)
 		api.GET("/vehicles/stats", getVehicleStatsHandler)
 		api.PUT("/vehicles/:id/status", middleware.AuthRequired(), middleware.AdminRequired(), updateVehicleStatusHandler)
-		
+
 		// Driver endpoints
 		api.POST("/drivers", middleware.AuthRequired(), createDriverHandler)
 		api.GET("/drivers", getDriversHandler)
 		api.GET("/drivers/:id", getDriverHandler)
-		
+
 		// Trip endpoints
 		api.POST("/trips", middleware.AuthRequired(), createTripHandler)
 		api.GET("/trips", getTripsHandler)
 		api.GET("/trips/:id", getTripHandler)
-		
+
 		// Analytics endpoints
 		api.GET("/dashboard/stats", getDashboardStatsHandler)
 		api.GET("/dashboard/vehicle-utilization", getVehicleUtilizationHandler)
-		
+
 		// Fleet management endpoints
 		api.POST("/fleet/register", middleware.AuthRequired(), registerFleetOwnerHandler)
 		api.GET("/fleet/profile", middleware.AuthRequired(), getFleetProfileHandler)
 		api.POST("/fleet/vehicles", middleware.AuthRequired(), registerFleetVehicleHandler)
 		api.GET("/fleet/vehicles", middleware.AuthRequired(), getFleetVehiclesHandler)
-		
+
 		// File upload endpoints
 		api.POST("/upload/document", middleware.AuthRequired(), uploadDocumentHandler)
 		api.POST("/vehicles/:id/attachments", middleware.AuthRequired(), uploadVehicleAttachmentHandler)
 		api.GET("/vehicles/:id/attachments", middleware.AuthRequired(), getVehicleAttachmentsHandler)
 		api.DELETE("/vehicles/:id/attachments/:attachmentId", middleware.AuthRequired(), deleteVehicleAttachmentHandler)
 		api.GET("/files/:filename", serveFileHandler)
-		
+
 		// Admin endpoints
 		api.GET("/admin/dashboard", middleware.AuthRequired(), middleware.AdminRequired(), getAdminDashboardHandler)
 		api.GET("/admin/verification-dashboard", middleware.AuthRequired(), middleware.AdminRequired(), getAdminVerificationDashboardHandler)
@@ -163,43 +163,43 @@ func main() {
 		api.GET("/admin/vehicles/:id/history", middleware.AuthRequired(), middleware.AdminRequired(), getVehicleVerificationHistoryHandler)
 		api.GET("/admin/documents", middleware.AuthRequired(), middleware.AdminRequired(), getUploadedDocumentsHandler)
 		api.PUT("/admin/documents/:id/verify", middleware.AuthRequired(), middleware.AdminRequired(), verifyDocumentHandler)
-		
+
 		// Enhanced dashboard endpoints
 		api.GET("/notifications", middleware.AuthRequired(), getNotificationsHandler)
 		api.PUT("/notifications/:id/read", middleware.AuthRequired(), markNotificationReadHandler)
 		api.GET("/fleet/tracking", middleware.AuthRequired(), getVehicleTrackingHandler)
 		api.GET("/fleet/analytics", middleware.AuthRequired(), getRevenueAnalyticsHandler)
-		
+
 		// GPS Registration endpoints
 		api.POST("/gps-registration", createGPSRegistrationHandler)
 		api.GET("/gps-registration", middleware.AuthRequired(), middleware.AdminRequired(), getAllGPSRegistrationsHandler)
 		api.GET("/gps-registration/pending", middleware.AuthRequired(), middleware.AdminRequired(), getPendingGPSRegistrationsHandler)
 		api.PUT("/gps-registration/:id/approve", middleware.AuthRequired(), middleware.AdminRequired(), approveGPSRegistrationHandler)
 		api.GET("/gps-registration/:id", middleware.AuthRequired(), getGPSRegistrationByIDHandler)
-		
+
 		// GPS Device endpoints
 		api.GET("/gps-devices", middleware.AuthRequired(), middleware.AdminRequired(), getAllGPSDevicesHandler)
 		api.POST("/gps-devices/assign", middleware.AuthRequired(), middleware.AdminRequired(), assignGPSDeviceHandler)
 		api.PUT("/gps-devices/:deviceId/status", middleware.AuthRequired(), middleware.AdminRequired(), updateGPSDeviceStatusHandler)
-		
+
 		// GPS Tracking endpoints
 		api.POST("/gps-tracking/ingest", ingestGPSDataHandler)
 		api.POST("/gps-tracking/batch-ingest", batchIngestGPSDataHandler)
 		api.GET("/gps-tracking/positions", middleware.AuthRequired(), getLatestPositionsHandler)
 		api.GET("/gps-tracking/history/:deviceId", middleware.AuthRequired(), getTrackingHistoryHandler)
-		
+
 		// WebSocket endpoint
 		api.GET("/ws/tracking", handleWebSocketConnection)
-		
+
 		// OCR endpoints
 		api.POST("/ocr/stnk", middleware.AuthRequired(), extractSTNKHandler)
 		api.POST("/ocr/ktp", middleware.AuthRequired(), extractKTPHandler)
 		api.POST("/ocr/face-match", middleware.AuthRequired(), faceMatchHandler)
 		api.POST("/ocr/validate-quality", middleware.AuthRequired(), validateQualityHandler)
-		
+
 		// Document upload endpoints
 		api.POST("/documents/upload", middleware.AuthRequired(), uploadDocumentDirectHandler)
-		
+
 		// Driver mobile app endpoints
 		api.GET("/driver/profile", middleware.AuthRequired(), getDriverProfileHandler)
 		api.GET("/driver/trips", middleware.AuthRequired(), getDriverTripsHandler)
@@ -221,13 +221,13 @@ func main() {
 }
 
 func registerHandler(c *gin.Context) {
-	
+
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", middleware.SanitizeForLog(err.Error()))
@@ -235,7 +235,7 @@ func registerHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	user, err := auth.CreateUser(conn, req)
 	if err != nil {
 		log.Printf("Create user error: %v", middleware.SanitizeForLog(err.Error()))
@@ -246,14 +246,14 @@ func registerHandler(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	token, err := auth.GenerateToken(user.ID, user.Username, user.Role)
 	if err != nil {
 		log.Printf("Token generation error: %v", middleware.SanitizeForLog(err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, models.LoginResponse{
 		Token: token,
 		User: models.UserResponse{
@@ -269,16 +269,16 @@ func registerHandler(c *gin.Context) {
 }
 
 func loginHandler(c *gin.Context) {
-	
+
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		log.Printf("Login request binding error: %v", middleware.SanitizeForLog(err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	log.Printf("Login attempt for user: %s", middleware.SanitizeForLog(req.Email))
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", middleware.SanitizeForLog(err.Error()))
@@ -286,23 +286,23 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 	// Don't close connection - let pool manage it
-	
+
 	user, err := auth.LoginUser(conn, req)
 	if err != nil {
 		log.Printf("Login error for user: %s - %v", middleware.SanitizeForLog(req.Email), middleware.SanitizeForLog(err.Error()))
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Email/username atau kata sandi salah"})
 		return
 	}
-	
+
 	token, err := auth.GenerateToken(user.ID, user.Username, user.Role)
 	if err != nil {
 		log.Printf("Token generation error: %v", middleware.SanitizeForLog(err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-	
+
 	log.Printf("Login successful for user ID: %d", user.ID)
-	
+
 	c.JSON(http.StatusOK, models.LoginResponse{
 		Token: token,
 		User: models.UserResponse{
@@ -323,7 +323,7 @@ func createVehicleHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", err)
@@ -331,13 +331,13 @@ func createVehicleHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	// Get user ID from context (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
 		userID = 1 // Fallback for development
 	}
-	
+
 	// Safe type assertion
 	var userIDInt int
 	if id, ok := userID.(int); ok {
@@ -347,14 +347,14 @@ func createVehicleHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication error"})
 		return
 	}
-	
+
 	vehicle, err := services.CreateVehicle(conn, req, userIDInt)
 	if err != nil {
 		log.Printf("Create vehicle error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create vehicle"})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"vehicle": vehicle})
 }
 
@@ -366,7 +366,7 @@ func getVehiclesHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	// Check if requesting approved vehicles only
 	if c.Query("status") == "approved" {
 		vehicles, err := services.GetApprovedVehicles(conn)
@@ -378,14 +378,14 @@ func getVehiclesHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
 		return
 	}
-	
+
 	vehicles, err := services.GetVehicles(conn)
 	if err != nil {
 		log.Printf("Get vehicles error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get vehicles"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
 }
 
@@ -396,7 +396,7 @@ func getVehicleHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid vehicle ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", err)
@@ -404,14 +404,14 @@ func getVehicleHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	vehicle, err := services.GetVehicleByID(conn, id)
 	if err != nil {
 		log.Printf("Get vehicle error: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Vehicle not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"vehicle": vehicle})
 }
 
@@ -422,14 +422,14 @@ func getApprovedVehiclesHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	
+
 	vehicles, err := services.GetApprovedVehicles(conn)
 	if err != nil {
 		log.Printf("Get approved vehicles error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get approved vehicles"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
 }
 
@@ -440,7 +440,7 @@ func createDriverHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	// TODO: Implement CreateDriver service
 	c.JSON(http.StatusNotImplemented, gin.H{"error": "Driver creation not implemented yet"})
 }
@@ -462,7 +462,7 @@ func createTripHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", err)
@@ -470,14 +470,14 @@ func createTripHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	trip, err := services.CreateTrip(conn, req)
 	if err != nil {
 		log.Printf("Create trip error: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create trip"})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"trip": trip})
 }
 
@@ -489,14 +489,14 @@ func getTripsHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	trips, err := services.GetTrips(conn)
 	if err != nil {
 		log.Printf("Get trips error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get trips"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"trips": trips})
 }
 
@@ -507,7 +507,7 @@ func getTripHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid trip ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %v", err)
@@ -515,14 +515,14 @@ func getTripHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	trip, err := services.GetTripByID(conn, id)
 	if err != nil {
 		log.Printf("Get trip error: %v", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Trip not found"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"trip": trip})
 }
 
@@ -535,14 +535,14 @@ func getDashboardStatsHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	stats, err := services.GetDashboardStats(conn)
 	if err != nil {
 		log.Printf("Get dashboard stats error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get dashboard stats"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"stats": stats})
 }
 
@@ -554,14 +554,14 @@ func getVehicleUtilizationHandler(c *gin.Context) {
 		return
 	}
 	// Let connection pool manage connections
-	
+
 	utilization, err := services.GetVehicleUtilization(conn)
 	if err != nil {
 		log.Printf("Get vehicle utilization error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get vehicle utilization"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"utilization": utilization})
 }
 
@@ -603,7 +603,7 @@ func uploadVehicleAttachmentHandler(c *gin.Context) {
 		if req.Data != "" {
 			// Create uploads directory if not exists
 			os.MkdirAll("./uploads", 0755)
-			
+
 			// Save base64 data directly to file for serving
 			file, err := os.Create(filePath)
 			if err == nil {
@@ -759,37 +759,37 @@ func deleteVehicleAttachmentHandler(c *gin.Context) {
 
 func serveFileHandler(c *gin.Context) {
 	filename := c.Param("filename")
-	
+
 	// Security check - prevent directory traversal
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
 		return
 	}
-	
+
 	// Use filepath.Base to get only filename without path
 	safeFilename := filepath.Base(filename)
 	if safeFilename != filename {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid filename"})
 		return
 	}
-	
+
 	// Construct safe file path
 	uploadsDir := "./uploads"
 	filePath := filepath.Join(uploadsDir, safeFilename)
-	
+
 	// Verify the resolved path is within uploads directory
 	absUploadsDir, err := filepath.Abs(uploadsDir)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server error"})
 		return
 	}
-	
+
 	absFilePath, err := filepath.Abs(filePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server error"})
 		return
 	}
-	
+
 	if !strings.HasPrefix(absFilePath, absUploadsDir) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
 		return
@@ -1008,12 +1008,12 @@ func verifyVehicleHandler(c *gin.Context) {
 		notificationService := services.NewNotificationService(conn)
 		templateKey := "approved"
 		extraVars := map[string]interface{}{}
-		
+
 		if req.Status == "rejected" {
 			templateKey = "rejected"
 			extraVars["reason"] = req.Notes
 		}
-		
+
 		err := notificationService.SendVehicleNotification(vehicleID, templateKey, extraVars)
 		if err != nil {
 			log.Printf("Failed to send verification notification: %v", err)
@@ -1384,37 +1384,37 @@ func registerFleetOwnerHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid request format: %v", err)})
 		return
 	}
-	
+
 	// Log the received request for debugging
-	log.Printf("Fleet registration request: CompanyName=%s, Address=%s, Phone=%s, Email=%s", 
+	log.Printf("Fleet registration request: CompanyName=%s, Address=%s, Phone=%s, Email=%s",
 		req.CompanyName, req.Address, req.PhoneNumber, req.Email)
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-	
+
 	userIDInt, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	
+
 	fleetOwner, err := services.RegisterFleetOwner(conn, req, userIDInt)
 	if err != nil {
 		log.Printf("Register fleet owner error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"fleet_owner": fleetOwner})
 }
 
@@ -1424,20 +1424,20 @@ func getFleetProfileHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-	
+
 	userIDInt, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	
+
 	fleetOwner, err := services.GetFleetOwnerByUserID(conn, userIDInt)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -1448,7 +1448,7 @@ func getFleetProfileHandler(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"fleet_owner": fleetOwner})
 }
 
@@ -1459,26 +1459,26 @@ func registerFleetVehicleHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-	
+
 	userIDInt, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	
+
 	// Simple vehicle registration - insert directly to vehicles table
 	query := `INSERT INTO vehicles (
 		registration_number, vehicle_type, brand, model, year, 
@@ -1486,10 +1486,10 @@ func registerFleetVehicleHandler(c *gin.Context) {
 		ownership_status, created_by, verification_status
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending') 
 	RETURNING id, created_at`
-	
+
 	var vehicleID int
 	var createdAt time.Time
-	
+
 	// Extract data from request with defaults
 	registrationNumber := getStringValue(req, "registration_number")
 	vehicleType := getStringValue(req, "vehicle_type")
@@ -1501,13 +1501,13 @@ func registerFleetVehicleHandler(c *gin.Context) {
 	color := getStringValue(req, "color")
 	capacityWeight := getFloatValue(req, "capacity_weight", 0.0)
 	ownershipStatus := getStringValue(req, "ownership_status")
-	
-	err = conn.QueryRow(query, 
+
+	err = conn.QueryRow(query,
 		registrationNumber, vehicleType, brand, model, year,
 		chassisNumber, engineNumber, color, capacityWeight,
 		ownershipStatus, userIDInt,
 	).Scan(&vehicleID, &createdAt)
-	
+
 	if err != nil {
 		log.Printf("Insert vehicle error: %v", err)
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
@@ -1523,19 +1523,19 @@ func registerFleetVehicleHandler(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// Return success response
 	vehicle := map[string]interface{}{
-		"id": vehicleID,
+		"id":                  vehicleID,
 		"registration_number": registrationNumber,
-		"vehicle_type": vehicleType,
-		"brand": brand,
-		"model": model,
-		"year": year,
+		"vehicle_type":        vehicleType,
+		"brand":               brand,
+		"model":               model,
+		"year":                year,
 		"verification_status": "pending",
-		"created_at": createdAt,
+		"created_at":          createdAt,
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{"vehicle": vehicle})
 }
 
@@ -1579,34 +1579,34 @@ func getFleetVehiclesHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
-	
+
 	userIDInt, ok := userID.(int)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-	
+
 	conn, err := db.Connect()
 	if err != nil {
 		log.Printf("Database connection error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	
+
 	// Get fleet owner ID
 	fleetOwner, err := services.GetFleetOwnerByUserID(conn, userIDInt)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Fleet owner profile not found"})
 		return
 	}
-	
+
 	vehicles, err := services.GetFleetVehicles(conn, fleetOwner.ID)
 	if err != nil {
 		log.Printf("Get fleet vehicles error: %s", strings.ReplaceAll(err.Error(), "\n", " "))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get vehicles"})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
 }
 func uploadDocumentHandler(c *gin.Context) {
@@ -1690,6 +1690,7 @@ func getApprovedVehiclesPublicHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"vehicles": vehicles})
 }
+
 // Enhanced admin verification handlers
 
 func getAdminVerificationDashboardHandler(c *gin.Context) {
@@ -1702,33 +1703,33 @@ func getAdminVerificationDashboardHandler(c *gin.Context) {
 
 	// Simple implementation for verification dashboard
 	dashboard := map[string]interface{}{
-		"pending_count": 0,
+		"pending_count":          0,
 		"needs_correction_count": 0,
-		"under_review_count": 0,
-		"approved_today": 0,
-		"rejected_today": 0,
-		"urgent_items": []map[string]interface{}{},
-		"recent_submissions": []map[string]interface{}{},
+		"under_review_count":     0,
+		"approved_today":         0,
+		"rejected_today":         0,
+		"urgent_items":           []map[string]interface{}{},
+		"recent_submissions":     []map[string]interface{}{},
 	}
 
 	// Get basic counts from database
 	var pendingCount, needsCorrectionCount, underReviewCount, approvedToday, rejectedToday int
-	
+
 	// Count pending vehicles
 	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'pending' OR verification_status = 'submitted'").Scan(&pendingCount)
-	
+
 	// Count needs correction
 	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'needs_correction'").Scan(&needsCorrectionCount)
-	
+
 	// Count under review
 	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'under_review'").Scan(&underReviewCount)
-	
+
 	// Count approved today
 	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'approved' AND DATE(updated_at) = CURRENT_DATE").Scan(&approvedToday)
-	
+
 	// Count rejected today
 	conn.QueryRow("SELECT COUNT(*) FROM vehicles WHERE verification_status = 'rejected' AND DATE(updated_at) = CURRENT_DATE").Scan(&rejectedToday)
-	
+
 	dashboard["pending_count"] = pendingCount
 	dashboard["needs_correction_count"] = needsCorrectionCount
 	dashboard["under_review_count"] = underReviewCount
@@ -1740,7 +1741,7 @@ func getAdminVerificationDashboardHandler(c *gin.Context) {
 
 func getVehiclesByStatusHandler(c *gin.Context) {
 	status := c.Param("status")
-	
+
 	// Validate status parameter
 	validStatuses := []string{"pending", "submitted", "needs_correction", "under_review", "pending_inspection", "approved", "rejected"}
 	validStatus := false
@@ -2000,9 +2001,9 @@ func scheduleInspectionHandler(c *gin.Context) {
 	}()
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Inspection scheduled successfully",
+		"message":         "Inspection scheduled successfully",
 		"inspection_date": inspectionDate,
-		"location": req.Location,
+		"location":        req.Location,
 	})
 }
 
@@ -2030,9 +2031,9 @@ func extractSTNKHandler(c *gin.Context) {
 	issues := ocrService.ValidateSTNKData(data)
 
 	c.JSON(http.StatusOK, gin.H{
-		"extracted_data": data,
+		"extracted_data":    data,
 		"validation_issues": issues,
-		"status": "success",
+		"status":            "success",
 	})
 }
 
@@ -2059,9 +2060,9 @@ func extractKTPHandler(c *gin.Context) {
 	issues := ocrService.ValidateKTPData(data)
 
 	c.JSON(http.StatusOK, gin.H{
-		"extracted_data": data,
+		"extracted_data":    data,
 		"validation_issues": issues,
-		"status": "success",
+		"status":            "success",
 	})
 }
 
@@ -2167,12 +2168,12 @@ func uploadDocumentDirectHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id": docID,
-		"file_path": filePath,
-		"file_name": req.FileName,
+		"id":            docID,
+		"file_path":     filePath,
+		"file_name":     req.FileName,
 		"document_type": req.DocumentType,
 		"upload_status": "uploaded",
-		"created_at": createdAt,
+		"created_at":    createdAt,
 	})
 }
 

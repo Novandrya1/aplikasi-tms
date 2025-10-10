@@ -557,8 +557,8 @@ class _AdminVerificationDashboardScreenState extends State<AdminVerificationDash
               () => _navigateToStatusList(AdminService.statusUnderReview),
             ),
             _buildQuickActionCard(
-              'Jadwal Inspeksi',
-              Icons.schedule,
+              'Keputusan Manual',
+              Icons.gavel,
               Colors.indigo,
               () => _navigateToStatusList(AdminService.statusPendingInspection),
             ),

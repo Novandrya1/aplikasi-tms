@@ -11,20 +11,12 @@ class VehicleVerificationScreen extends StatefulWidget {
 class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _verifications = [];
   bool _isLoading = true;
-  late TabController _tabController;
   String _currentFilter = 'pending';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
     _loadVerifications();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   void _loadVerifications() {
@@ -33,12 +25,6 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
       switch (_currentFilter) {
         case 'all':
           _verifications = VehicleVerificationService().getAllVerifications();
-          break;
-        case 'in_inspection':
-          _verifications = VehicleVerificationService().getVerificationsByStatus('in_progress');
-          break;
-        case 'awaiting_decision':
-          _verifications = VehicleVerificationService().getVerificationsByStatus('inspection_completed');
           break;
         case 'history':
           _verifications = VehicleVerificationService().getVerificationsByStatus('approved')
@@ -59,24 +45,6 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
         title: const Text('Verifikasi Kendaraan'),
         backgroundColor: Colors.blue[600],
         foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          onTap: (index) {
-            final filters = ['pending', 'inspection_scheduled', 'in_inspection', 'awaiting_decision', 'history'];
-            _currentFilter = filters[index];
-            _loadVerifications();
-          },
-          tabs: const [
-            Tab(text: 'Pending', icon: Icon(Icons.pending, size: 16)),
-            Tab(text: 'Terjadwal', icon: Icon(Icons.schedule, size: 16)),
-            Tab(text: 'Inspeksi', icon: Icon(Icons.engineering, size: 16)),
-            Tab(text: 'Keputusan', icon: Icon(Icons.gavel, size: 16)),
-            Tab(text: 'Riwayat', icon: Icon(Icons.history, size: 16)),
-          ],
-        ),
         actions: [
           ValueListenableBuilder<int>(
             valueListenable: VehicleVerificationService().pendingCount,
@@ -205,39 +173,6 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
                 const SizedBox(width: 8),
                 if (status == 'pending') ...[
                   ElevatedButton.icon(
-                    onPressed: () => _scheduleInspection(verification['id']),
-                    icon: const Icon(Icons.schedule, size: 16),
-                    label: const Text('Jadwal Inspeksi'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-                if (status == 'inspection_scheduled') ...[
-                  ElevatedButton.icon(
-                    onPressed: () => _startInspection(verification['id']),
-                    icon: const Icon(Icons.play_arrow, size: 16),
-                    label: const Text('Mulai Inspeksi'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-                if (status == 'in_progress') ...[
-                  ElevatedButton.icon(
-                    onPressed: () => _showInspectionForm(verification['id']),
-                    icon: const Icon(Icons.engineering, size: 16),
-                    label: const Text('Lakukan Inspeksi'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-                if (status == 'inspection_completed') ...[
-                  ElevatedButton.icon(
                     onPressed: () => _showDecisionDialog(verification['id']),
                     icon: const Icon(Icons.gavel, size: 16),
                     label: const Text('Buat Keputusan'),
@@ -258,9 +193,6 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending': return Colors.orange;
-      case 'inspection_scheduled': return Colors.blue;
-      case 'in_progress': return Colors.indigo;
-      case 'inspection_completed': return Colors.purple;
       case 'approved': return Colors.green;
       case 'rejected': return Colors.red;
       case 'needs_repair': return Colors.amber;
@@ -271,9 +203,6 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'pending': return Icons.pending;
-      case 'inspection_scheduled': return Icons.schedule;
-      case 'in_progress': return Icons.engineering;
-      case 'inspection_completed': return Icons.assignment_turned_in;
       case 'approved': return Icons.check_circle;
       case 'rejected': return Icons.cancel;
       case 'needs_repair': return Icons.build;
@@ -283,10 +212,7 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'pending': return 'Menunggu Jadwal';
-      case 'inspection_scheduled': return 'Siap Inspeksi';
-      case 'in_progress': return 'Sedang Inspeksi';
-      case 'inspection_completed': return 'Menunggu Keputusan';
+      case 'pending': return 'Menunggu Keputusan';
       case 'approved': return 'Disetujui';
       case 'rejected': return 'Ditolak';
       case 'needs_repair': return 'Perlu Perbaikan';
@@ -329,12 +255,7 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
                 const Text('Dokumen:', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 ..._buildDocumentList(vehicleData['documents']),
-                if (verification['inspectionReport'] != null) ...[
-                  const Divider(),
-                  const Text('Laporan Inspeksi:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ..._buildInspectionReport(verification['inspectionReport']),
-                ],
+
               ],
             ),
           ),
@@ -392,18 +313,7 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
     }).toList();
   }
 
-  List<Widget> _buildInspectionReport(Map<String, dynamic> report) {
-    return [
-      _buildDetailRow('Inspector', report['inspector']),
-      _buildDetailRow('Tanggal Inspeksi', report['date']),
-      _buildDetailRow('Kondisi Mesin', report['engine_condition']),
-      _buildDetailRow('Kondisi Body', report['body_condition']),
-      _buildDetailRow('Kondisi Ban', report['tire_condition']),
-      _buildDetailRow('Kelengkapan Dokumen', report['document_completeness']),
-      _buildDetailRow('Catatan', report['notes']),
-      _buildDetailRow('Rekomendasi', report['recommendation']),
-    ];
-  }
+
 
   void _showImageDialog(String? imagePath) {
     if (imagePath == null) return;
@@ -460,112 +370,28 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
     }
   }
 
-  void _scheduleInspection(String verificationId) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-        final notesController = TextEditingController();
-        
-        return StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: const Text('Jadwal Inspeksi'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: const Text('Tanggal Inspeksi'),
-                  subtitle: Text(_formatDate(selectedDate)),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 30)),
-                    );
-                    if (date != null) {
-                      setState(() => selectedDate = date);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Catatan',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  VehicleVerificationService().scheduleInspection(
-                    verificationId,
-                    selectedDate,
-                    notesController.text,
-                  );
-                  Navigator.pop(context);
-                  _loadVerifications();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Inspeksi berhasil dijadwalkan'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                child: const Text('Jadwalkan'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+
 
   void _showDecisionDialog(String verificationId) {
+    final verification = _verifications.firstWhere((v) => v['id'] == verificationId);
+    final vehicleData = verification['vehicleData'] as Map<String, dynamic>;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Keputusan Verifikasi'),
-        content: const Text('Pilih keputusan berdasarkan hasil inspeksi:'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showRejectDialog(verificationId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Tolak'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showRepairDialog(verificationId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-            child: const Text('Perlu Perbaikan'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _approveVerification(verificationId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Setujui'),
-          ),
-        ],
+      builder: (context) => _DocumentReviewDialog(
+        verificationId: verificationId,
+        vehicleData: vehicleData,
+        onDecision: (decision, notes) {
+          Navigator.pop(context);
+          if (decision == 'approve') {
+            _approveVerification(verificationId);
+          } else if (decision == 'reject') {
+            _rejectWithReason(verificationId, notes);
+          } else if (decision == 'repair') {
+            _requireRepairWithDetails(verificationId, notes);
+          }
+          _loadVerifications();
+        },
       ),
     );
   }
@@ -736,61 +562,10 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
     }).toList();
   }
 
-  void _startInspection(String verificationId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Mulai Inspeksi'),
-        content: const Text('Apakah Anda yakin ingin memulai proses inspeksi kendaraan ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              VehicleVerificationService().startInspection(verificationId, 'Inspector');
-              Navigator.pop(context);
-              _loadVerifications();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Inspeksi dimulai. Silakan lakukan pemeriksaan kendaraan.'),
-                  backgroundColor: Colors.blue,
-                ),
-              );
-            },
-            child: const Text('Mulai Inspeksi'),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showInspectionForm(String verificationId) {
-    final verification = _verifications.firstWhere((v) => v['id'] == verificationId);
-    final vehicleData = verification['vehicleData'] as Map<String, dynamic>;
-    
-    showDialog(
-      context: context,
-      builder: (context) => _InspectionFormDialog(
-        verificationId: verificationId,
-        vehicleData: vehicleData,
-        onCompleted: () {
-          _loadVerifications();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Inspeksi selesai. Menunggu keputusan admin.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   void _approveVerification(String verificationId) {
     VehicleVerificationService().approveVerification(verificationId, 'Admin');
-    _loadVerifications();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Kendaraan berhasil disetujui dan masuk ke sistem kelola kendaraan'),
@@ -798,42 +573,67 @@ class _VehicleVerificationScreenState extends State<VehicleVerificationScreen> w
       ),
     );
   }
+  
+  void _rejectWithReason(String verificationId, String reason) {
+    VehicleVerificationService().rejectVerification(verificationId, reason, 'Admin');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Kendaraan ditolak'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+  
+  void _requireRepairWithDetails(String verificationId, String details) {
+    VehicleVerificationService().requireRepair(verificationId, details, 'Admin');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Kendaraan dikembalikan untuk perbaikan'),
+        backgroundColor: Colors.amber,
+      ),
+    );
+  }
 }
 
-class _InspectionFormDialog extends StatefulWidget {
+class _DocumentReviewDialog extends StatefulWidget {
   final String verificationId;
   final Map<String, dynamic> vehicleData;
-  final VoidCallback onCompleted;
+  final Function(String decision, String notes) onDecision;
 
-  const _InspectionFormDialog({
+  const _DocumentReviewDialog({
     required this.verificationId,
     required this.vehicleData,
-    required this.onCompleted,
+    required this.onDecision,
   });
 
   @override
-  State<_InspectionFormDialog> createState() => _InspectionFormDialogState();
+  State<_DocumentReviewDialog> createState() => _DocumentReviewDialogState();
 }
 
-class _InspectionFormDialogState extends State<_InspectionFormDialog> {
+class _DocumentReviewDialogState extends State<_DocumentReviewDialog> {
   final _notesController = TextEditingController();
-  final Map<String, String> _inspectionResults = {};
+  final Map<String, bool> _documentStatus = {};
+  final Map<String, String> _documentNotes = {};
   
-  final List<Map<String, String>> _inspectionItems = [
-    {'key': 'engine_condition', 'label': 'Kondisi Mesin'},
-    {'key': 'body_condition', 'label': 'Kondisi Body'},
-    {'key': 'tire_condition', 'label': 'Kondisi Ban'},
-    {'key': 'brake_condition', 'label': 'Kondisi Rem'},
-    {'key': 'light_condition', 'label': 'Kondisi Lampu'},
-    {'key': 'document_completeness', 'label': 'Kelengkapan Dokumen'},
+  final List<Map<String, String>> _requiredDocuments = [
+    {'key': 'stnk', 'name': 'STNK', 'description': 'Surat Tanda Nomor Kendaraan'},
+    {'key': 'bpkb', 'name': 'BPKB', 'description': 'Buku Pemilik Kendaraan Bermotor'},
+    {'key': 'ktp', 'name': 'KTP Pemilik', 'description': 'Kartu Tanda Penduduk pemilik kendaraan'},
+    {'key': 'uji_kir', 'name': 'Uji KIR', 'description': 'Sertifikat Uji Kendaraan Bermotor'},
+    {'key': 'surat_polisi', 'name': 'Surat Polisi', 'description': 'Surat keterangan dari kepolisian'},
+    {'key': 'asuransi', 'name': 'Asuransi', 'description': 'Dokumen asuransi kendaraan'},
+    {'key': 'vehicle_photo_front', 'name': 'Foto Depan', 'description': 'Foto kendaraan tampak depan'},
+    {'key': 'vehicle_photo_back', 'name': 'Foto Belakang', 'description': 'Foto kendaraan tampak belakang'},
+    {'key': 'vehicle_photo_right', 'name': 'Foto Kanan', 'description': 'Foto kendaraan tampak kanan'},
+    {'key': 'vehicle_photo_left', 'name': 'Foto Kiri', 'description': 'Foto kendaraan tampak kiri'},
   ];
 
   @override
   void initState() {
     super.initState();
-    // Initialize with default values
-    for (var item in _inspectionItems) {
-      _inspectionResults[item['key']!] = 'Baik';
+    final documents = widget.vehicleData['documents'] as Map<String, dynamic>? ?? {};
+    for (var doc in _requiredDocuments) {
+      _documentStatus[doc['key']!] = documents[doc['key']] != null;
     }
   }
 
@@ -841,19 +641,19 @@ class _InspectionFormDialogState extends State<_InspectionFormDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       child: Container(
-        width: 600,
-        constraints: const BoxConstraints(maxHeight: 700),
+        width: 700,
+        constraints: const BoxConstraints(maxHeight: 800),
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.engineering, color: Colors.blue),
+                const Icon(Icons.assignment, color: Colors.blue),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Form Inspeksi - ${widget.vehicleData['registration_number']}',
+                    'Review Dokumen - ${widget.vehicleData['registration_number']}',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -865,74 +665,91 @@ class _InspectionFormDialogState extends State<_InspectionFormDialog> {
             ),
             const SizedBox(height: 16),
             
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${widget.vehicleData['brand']} ${widget.vehicleData['model']} (${widget.vehicleData['year']})',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Pemilik: ${widget.vehicleData['owner_name']}'),
+                  Text('Email: ${widget.vehicleData['owner_email']}'),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            const Text(
+              'Checklist Dokumen:',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Vehicle Info
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${widget.vehicleData['brand']} ${widget.vehicleData['model']} (${widget.vehicleData['year']})',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text('Pemilik: ${widget.vehicleData['owner_name']}'),
-                          Text('Warna: ${widget.vehicleData['color']}'),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Hasil Pemeriksaan:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Inspection Items
-                    ..._inspectionItems.map((item) => _buildInspectionItem(
-                      item['key']!,
-                      item['label']!,
-                    )),
-                    
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Catatan Inspeksi',
-                        border: OutlineInputBorder(),
-                        hintText: 'Tambahkan catatan hasil inspeksi...',
-                      ),
-                      maxLines: 4,
-                    ),
-                  ],
+                  children: _requiredDocuments.map((doc) => _buildDocumentCheckItem(doc)).toList(),
                 ),
               ),
             ),
             
             const SizedBox(height: 20),
+            TextField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Catatan Verifikasi',
+                border: OutlineInputBorder(),
+                hintText: 'Tambahkan catatan untuk keputusan ini...',
+              ),
+              maxLines: 3,
+            ),
+            
+            const SizedBox(height: 20),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _completeInspection,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _canApprove() ? () => _makeDecision('approve') : null,
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Setujui'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
-                  child: const Text('Selesai Inspeksi', style: TextStyle(color: Colors.white)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _makeDecision('repair'),
+                    icon: const Icon(Icons.build),
+                    label: const Text('Perlu Perbaikan'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _makeDecision('reject'),
+                    icon: const Icon(Icons.cancel),
+                    label: const Text('Tolak'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -942,103 +759,257 @@ class _InspectionFormDialogState extends State<_InspectionFormDialog> {
     );
   }
 
-  Widget _buildInspectionItem(String key, String label) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[300]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: RadioListTile<String>(
-                  dense: true,
-                  title: const Text('Baik', style: TextStyle(fontSize: 12)),
-                  value: 'Baik',
-                  groupValue: _inspectionResults[key],
-                  onChanged: (value) {
-                    setState(() {
-                      _inspectionResults[key] = value!;
-                    });
-                  },
-                  activeColor: Colors.green,
+  Widget _buildDocumentCheckItem(Map<String, String> doc) {
+    final key = doc['key']!;
+    final isAvailable = _documentStatus[key] ?? false;
+    final isValid = _documentStatus['${key}_valid'] ?? isAvailable;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isAvailable ? Icons.description : Icons.warning,
+                  color: isAvailable ? (isValid ? Colors.green : Colors.orange) : Colors.red,
+                  size: 20,
                 ),
-              ),
-              Expanded(
-                child: RadioListTile<String>(
-                  dense: true,
-                  title: const Text('Cukup', style: TextStyle(fontSize: 12)),
-                  value: 'Cukup',
-                  groupValue: _inspectionResults[key],
-                  onChanged: (value) {
-                    setState(() {
-                      _inspectionResults[key] = value!;
-                    });
-                  },
-                  activeColor: Colors.orange,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doc['name']!,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        doc['description']!,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
                 ),
+                if (isAvailable) ...[
+                  TextButton.icon(
+                    onPressed: () => _viewDocument(key),
+                    icon: const Icon(Icons.visibility, size: 16),
+                    label: const Text('Lihat'),
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8)),
+                  ),
+                ],
+              ],
+            ),
+            if (isAvailable) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('Status: ', style: TextStyle(fontSize: 12)),
+                  ChoiceChip(
+                    label: const Text('Valid', style: TextStyle(fontSize: 11)),
+                    selected: isValid,
+                    onSelected: (selected) {
+                      setState(() {
+                        _documentStatus['${key}_valid'] = selected;
+                        if (!selected) {
+                          _documentNotes[key] = _documentNotes[key] ?? 'Dokumen tidak valid';
+                        }
+                      });
+                    },
+                    selectedColor: Colors.green[100],
+                    labelStyle: TextStyle(color: isValid ? Colors.green[700] : Colors.grey[600]),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('Tidak Valid', style: TextStyle(fontSize: 11)),
+                    selected: !isValid,
+                    onSelected: (selected) {
+                      setState(() {
+                        _documentStatus['${key}_valid'] = !selected;
+                        if (selected) {
+                          _showDocumentIssueDialog(key, doc['name']!);
+                        }
+                      });
+                    },
+                    selectedColor: Colors.red[100],
+                    labelStyle: TextStyle(color: !isValid ? Colors.red[700] : Colors.grey[600]),
+                  ),
+                ],
               ),
-              Expanded(
-                child: RadioListTile<String>(
-                  dense: true,
-                  title: const Text('Buruk', style: TextStyle(fontSize: 12)),
-                  value: 'Buruk',
-                  groupValue: _inspectionResults[key],
-                  onChanged: (value) {
-                    setState(() {
-                      _inspectionResults[key] = value!;
-                    });
-                  },
-                  activeColor: Colors.red,
+              if (!isValid && _documentNotes[key] != null) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Text(
+                    'Masalah: ${_documentNotes[key]}',
+                    style: TextStyle(fontSize: 11, color: Colors.red[700]),
+                  ),
+                ),
+              ],
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Dokumen tidak tersedia',
+                  style: TextStyle(fontSize: 11, color: Colors.red[700]),
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _viewDocument(String docKey) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Dokumen ${_getDocumentName(docKey)}'),
+        content: Container(
+          width: 400,
+          height: 300,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.description, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text('Preview Dokumen'),
+                SizedBox(height: 8),
+                Text(
+                  'Integrasi dengan storage untuk menampilkan dokumen',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
           ),
         ],
       ),
     );
   }
 
-  void _completeInspection() {
-    final inspectionReport = {
-      'inspector': 'Inspector',
-      'date': DateTime.now().toIso8601String(),
-      'results': _inspectionResults,
-      'notes': _notesController.text.trim(),
-      'recommendation': _getRecommendation(),
-    };
-
-    VehicleVerificationService().completeInspection(
-      widget.verificationId,
-      inspectionReport,
-      'Inspector',
+  void _showDocumentIssueDialog(String docKey, String docName) {
+    final issueController = TextEditingController(text: _documentNotes[docKey] ?? '');
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Masalah pada $docName'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Jelaskan masalah pada dokumen ini:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: issueController,
+              decoration: const InputDecoration(
+                labelText: 'Deskripsi masalah',
+                border: OutlineInputBorder(),
+                hintText: 'Contoh: Foto tidak jelas, data tidak sesuai, dll.',
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _documentStatus['${docKey}_valid'] = true;
+                _documentNotes.remove(docKey);
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _documentNotes[docKey] = issueController.text.trim();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
     );
-
-    Navigator.pop(context);
-    widget.onCompleted();
   }
 
-  String _getRecommendation() {
-    final badConditions = _inspectionResults.values.where((v) => v == 'Buruk').length;
-    final fairConditions = _inspectionResults.values.where((v) => v == 'Cukup').length;
-    
-    if (badConditions > 0) {
-      return 'Perlu Perbaikan';
-    } else if (fairConditions > 2) {
-      return 'Perlu Perhatian';
-    } else {
-      return 'Layak Disetujui';
+  bool _canApprove() {
+    for (var doc in _requiredDocuments) {
+      final key = doc['key']!;
+      final isAvailable = _documentStatus[key] ?? false;
+      final isValid = _documentStatus['${key}_valid'] ?? isAvailable;
+      
+      if (!isAvailable || !isValid) {
+        return false;
+      }
     }
+    return true;
+  }
+
+  void _makeDecision(String decision) {
+    String notes = _notesController.text.trim();
+    
+    final issues = <String>[];
+    for (var doc in _requiredDocuments) {
+      final key = doc['key']!;
+      final isAvailable = _documentStatus[key] ?? false;
+      final isValid = _documentStatus['${key}_valid'] ?? isAvailable;
+      
+      if (!isAvailable) {
+        issues.add('${doc['name']}: Tidak tersedia');
+      } else if (!isValid && _documentNotes[key] != null) {
+        issues.add('${doc['name']}: ${_documentNotes[key]}');
+      }
+    }
+    
+    if (issues.isNotEmpty) {
+      notes = issues.join('\n') + (notes.isNotEmpty ? '\n\nCatatan tambahan:\n$notes' : '');
+    }
+    
+    if (decision != 'approve' && notes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon berikan catatan untuk keputusan ini'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    widget.onDecision(decision, notes);
+  }
+
+  String _getDocumentName(String key) {
+    final doc = _requiredDocuments.firstWhere((d) => d['key'] == key, orElse: () => {'name': key});
+    return doc['name'] ?? key;
   }
 
   @override

@@ -21,14 +21,12 @@ func SanitizeInput(input string) string {
 	// Remove null bytes and control characters
 	input = strings.ReplaceAll(input, "\x00", "")
 	input = controlCharsRegex.ReplaceAllString(input, "")
-	
+
 	// Trim whitespace
 	input = strings.TrimSpace(input)
-	
+
 	return input
 }
-
-
 
 // DetectSQLInjection checks for common SQL injection patterns
 func DetectSQLInjection(input string) bool {

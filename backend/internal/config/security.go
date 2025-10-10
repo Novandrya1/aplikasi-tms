@@ -19,7 +19,7 @@ type SecurityConfig struct {
 
 func LoadSecurityConfig() (*SecurityConfig, error) {
 	// Production mode check removed - not used
-	
+
 	// JWT Secret - must be set in all environments
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {

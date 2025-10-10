@@ -51,18 +51,18 @@ func RegisterFleetOwner(db *sql.DB, req models.FleetOwnerRequest, userID int) (*
 		chassis_number, engine_number, color, capacity_weight, capacity_volume,
 		ownership_status, operational_status, fleet_owner_id, verification_status
 	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
-	
+
 	regNumber := "PENDING-" + fmt.Sprintf("%d", fleetOwner.ID)
 	_, err = db.Exec(vehicleQuery,
 		regNumber, "Truck", "Unknown", "Unknown", 2020,
 		"PENDING", "PENDING", "Unknown", 1000.0, 10.0,
 		"owned", "pending_verification", fleetOwner.ID, "pending",
 	)
-	
+
 	if err != nil {
 		fmt.Printf("Failed to create vehicle: %v\n", err)
 	}
-	
+
 	// Send notifications asynchronously
 	go func() {
 		notifyAdminsFleetRegistration(db, req.CompanyName)
@@ -148,82 +148,82 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 	// Save all documents if provided in request
 	if req.Documents != nil {
 		documents := req.Documents.(map[string]interface{})
-		
+
 		// Save owner documents
 		if ktpFile, ok := documents["ktp_file"].(string); ok && ktpFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "ktp", ktpFile, "KTP_Pemilik.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "ktp", ktpFile, "KTP_Pemilik.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save KTP document: %v", err)
 			}
 		}
-		
+
 		if selfieFile, ok := documents["selfie_file"].(string); ok && selfieFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "selfie_ktp", selfieFile, "Selfie_KTP.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "selfie_ktp", selfieFile, "Selfie_KTP.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save selfie document: %v", err)
 			}
 		}
-		
+
 		// Save vehicle documents
 		if stnkFile, ok := documents["stnk_file"].(string); ok && stnkFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "stnk", stnkFile, "STNK.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "stnk", stnkFile, "STNK.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save STNK document: %v", err)
 			}
 		}
-		
+
 		if bpkbFile, ok := documents["bpkb_file"].(string); ok && bpkbFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "bpkb", bpkbFile, "BPKB.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "bpkb", bpkbFile, "BPKB.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save BPKB document: %v", err)
 			}
 		}
-		
+
 		if taxFile, ok := documents["tax_file"].(string); ok && taxFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "tax_receipt", taxFile, "Bukti_Pajak.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "tax_receipt", taxFile, "Bukti_Pajak.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save tax document: %v", err)
 			}
 		}
-		
+
 		if insuranceFile, ok := documents["insurance_file"].(string); ok && insuranceFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "insurance", insuranceFile, "Asuransi.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "insurance", insuranceFile, "Asuransi.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save insurance document: %v", err)
 			}
 		}
-		
+
 		// Save company documents if applicable
 		if businessLicenseFile, ok := documents["business_license_file"].(string); ok && businessLicenseFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "business_license", businessLicenseFile, "SIUP_NIB.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "business_license", businessLicenseFile, "SIUP_NIB.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save business license: %v", err)
 			}
 		}
-		
+
 		if npwpFile, ok := documents["npwp_file"].(string); ok && npwpFile != "" {
 			_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-							 VALUES ($1, $2, $3, $4)`, 
-							 vehicle.ID, "npwp", npwpFile, "NPWP.jpg")
+							 VALUES ($1, $2, $3, $4)`,
+				vehicle.ID, "npwp", npwpFile, "NPWP.jpg")
 			if err != nil {
 				return nil, fmt.Errorf("failed to save NPWP document: %v", err)
 			}
 		}
-		
+
 		// Save vehicle photos
 		if vehiclePhotos, ok := documents["vehicle_photos"].([]interface{}); ok {
 			for i, photo := range vehiclePhotos {
@@ -231,8 +231,8 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 					photoType := fmt.Sprintf("vehicle_photo_%d", i+1)
 					fileName := fmt.Sprintf("Foto_Kendaraan_%d.jpg", i+1)
 					_, err = tx.Exec(`INSERT INTO vehicle_attachments (vehicle_id, attachment_type, file_path, file_name) 
-									 VALUES ($1, $2, $3, $4)`, 
-									 vehicle.ID, photoType, photoPath, fileName)
+									 VALUES ($1, $2, $3, $4)`,
+						vehicle.ID, photoType, photoPath, fileName)
 					if err != nil {
 						return nil, fmt.Errorf("failed to save vehicle photo %d: %v", i+1, err)
 					}
@@ -244,18 +244,18 @@ func RegisterVehicleForFleet(db *sql.DB, req models.VehicleRegistrationRequest, 
 	// Save owner data for verification
 	if req.OwnerData != nil {
 		ownerData := req.OwnerData.(map[string]interface{})
-		
+
 		// Update fleet owner with complete data
 		updateQuery := `UPDATE fleet_owners SET 
 						owner_name = $1, ktp_number = $2, address = $3, phone = $4, email = $5,
 						company_name = COALESCE($6, company_name), npwp = $7, business_license = COALESCE($8, business_license)
 						WHERE id = $9`
-						
+
 		_, err = tx.Exec(updateQuery,
-			ownerData["name"], ownerData["ktp_number"], ownerData["address"], 
+			ownerData["name"], ownerData["ktp_number"], ownerData["address"],
 			ownerData["phone"], ownerData["email"], ownerData["company_name"],
 			ownerData["npwp"], ownerData["business_license"], fleetOwnerID)
-			
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to update owner data: %v", err)
 		}
@@ -344,7 +344,7 @@ func notifyAdminsFleetRegistration(db *sql.DB, companyName string) {
 		if err := rows.Scan(&adminID); err != nil {
 			continue
 		}
-		
+
 		// Create notification for each admin
 		notifQuery := `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`
 		db.Exec(notifQuery, adminID, title, message, "info")
@@ -368,7 +368,7 @@ func notifyAdminsVehicleRegistration(db *sql.DB, registrationNumber string) {
 		if err := rows.Scan(&adminID); err != nil {
 			continue
 		}
-		
+
 		// Create notification for each admin
 		notifQuery := `INSERT INTO notifications (user_id, title, message, type) VALUES ($1, $2, $3, $4)`
 		db.Exec(notifQuery, adminID, title, message, "warning")
@@ -397,7 +397,7 @@ func notifyAdminsCompleteVehicleRegistration(db *sql.DB, registrationNumber stri
 		if err := rows.Scan(&adminID); err != nil {
 			continue
 		}
-		
+
 		// Create high priority notification for complete registration
 		notifQuery := `INSERT INTO notifications (user_id, title, message, type, priority) VALUES ($1, $2, $3, $4, $5)`
 		db.Exec(notifQuery, adminID, title, message, "success", "high")

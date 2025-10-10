@@ -32,29 +32,29 @@ func (h *VehicleHandler) GetVehicles(c *gin.Context) {
 	var enrichedVehicles []map[string]interface{}
 	for _, vehicle := range vehicles {
 		vehicleMap := map[string]interface{}{
-			"id":                     vehicle.ID,
-			"registration_number":    vehicle.RegistrationNumber,
-			"vehicle_type":          vehicle.VehicleType,
-			"brand":                 vehicle.Brand,
-			"model":                 vehicle.Model,
-			"year":                  vehicle.Year,
-			"chassis_number":        vehicle.ChassisNumber,
-			"engine_number":         vehicle.EngineNumber,
-			"color":                 vehicle.Color,
-			"capacity_weight":       vehicle.CapacityWeight,
-			"capacity_volume":       vehicle.CapacityVolume,
-			"ownership_status":      vehicle.OwnershipStatus,
-			"operational_status":    vehicle.OperationalStatus,
-			"verification_status":   vehicle.VerificationStatus,
-			"verification_substatus": vehicle.VerificationSubstatus,
-			"insurance_company":     vehicle.InsuranceCompany,
+			"id":                      vehicle.ID,
+			"registration_number":     vehicle.RegistrationNumber,
+			"vehicle_type":            vehicle.VehicleType,
+			"brand":                   vehicle.Brand,
+			"model":                   vehicle.Model,
+			"year":                    vehicle.Year,
+			"chassis_number":          vehicle.ChassisNumber,
+			"engine_number":           vehicle.EngineNumber,
+			"color":                   vehicle.Color,
+			"capacity_weight":         vehicle.CapacityWeight,
+			"capacity_volume":         vehicle.CapacityVolume,
+			"ownership_status":        vehicle.OwnershipStatus,
+			"operational_status":      vehicle.OperationalStatus,
+			"verification_status":     vehicle.VerificationStatus,
+			"verification_substatus":  vehicle.VerificationSubstatus,
+			"insurance_company":       vehicle.InsuranceCompany,
 			"insurance_policy_number": vehicle.InsurancePolicyNumber,
-			"insurance_expiry_date": vehicle.InsuranceExpiryDate,
-			"last_maintenance_date": vehicle.LastMaintenanceDate,
-			"next_maintenance_date": vehicle.NextMaintenanceDate,
-			"maintenance_notes":     vehicle.MaintenanceNotes,
-			"created_at":           vehicle.CreatedAt,
-			"updated_at":           vehicle.UpdatedAt,
+			"insurance_expiry_date":   vehicle.InsuranceExpiryDate,
+			"last_maintenance_date":   vehicle.LastMaintenanceDate,
+			"next_maintenance_date":   vehicle.NextMaintenanceDate,
+			"maintenance_notes":       vehicle.MaintenanceNotes,
+			"created_at":              vehicle.CreatedAt,
+			"updated_at":              vehicle.UpdatedAt,
 		}
 
 		// Get owner information
@@ -108,7 +108,7 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 	ownerInfo, _ := h.getOwnerInfo(vehicle.CreatedBy)
 
 	response := map[string]interface{}{
-		"vehicle": vehicle,
+		"vehicle":    vehicle,
 		"owner_info": ownerInfo,
 	}
 
@@ -120,7 +120,7 @@ func (h *VehicleHandler) CreateVehicle(c *gin.Context) {
 	var req models.VehicleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request data",
+			"error":   "Invalid request data",
 			"details": err.Error(),
 		})
 		return
@@ -138,7 +138,7 @@ func (h *VehicleHandler) CreateVehicle(c *gin.Context) {
 	vehicle, err := services.CreateVehicle(h.db, req, userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create vehicle",
+			"error":   "Failed to create vehicle",
 			"details": err.Error(),
 		})
 		return
@@ -164,7 +164,7 @@ func (h *VehicleHandler) UpdateVehicleStatus(c *gin.Context) {
 	var req models.VehicleVerificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request data",
+			"error":   "Invalid request data",
 			"details": err.Error(),
 		})
 		return
@@ -209,7 +209,7 @@ func (h *VehicleHandler) GetVehicleStats(c *gin.Context) {
 		COUNT(*) as count 
 		FROM vehicles 
 		GROUP BY verification_status`
-	
+
 	rows, err := h.db.Query(statusQuery)
 	if err == nil {
 		defer rows.Close()
@@ -230,7 +230,7 @@ func (h *VehicleHandler) GetVehicleStats(c *gin.Context) {
 		COUNT(*) as count 
 		FROM vehicles 
 		GROUP BY vehicle_type`
-	
+
 	rows, err = h.db.Query(typeQuery)
 	if err == nil {
 		defer rows.Close()
@@ -252,14 +252,14 @@ func (h *VehicleHandler) GetVehicleStats(c *gin.Context) {
 func (h *VehicleHandler) getOwnerInfo(userID int) (map[string]interface{}, error) {
 	query := `SELECT name, email, phone, address, company_name, company_address 
 		FROM users WHERE id = $1`
-	
+
 	var name, email sql.NullString
 	var phone, address, companyName, companyAddress sql.NullString
-	
+
 	err := h.db.QueryRow(query, userID).Scan(
 		&name, &email, &phone, &address, &companyName, &companyAddress,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}

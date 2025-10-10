@@ -20,14 +20,14 @@ const (
 )
 
 var allowedTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/jpg":  true,
-	"image/png":  true,
+	"image/jpeg":      true,
+	"image/jpg":       true,
+	"image/png":       true,
 	"application/pdf": true,
 }
 
 var allowedAttachmentTypes = []string{
-	"stnk", "bpkb", "uji_kir", "asuransi", 
+	"stnk", "bpkb", "uji_kir", "asuransi",
 	"foto_depan", "foto_belakang", "foto_samping",
 }
 
@@ -70,15 +70,15 @@ func UploadVehicleAttachment(db *sql.DB, vehicleID int, attachmentType string, f
 	}
 	// Generate completely new filename to avoid any path traversal
 	filename := fmt.Sprintf("%d_%s_%d%s", vehicleID, attachmentType, time.Now().UnixNano(), ext)
-	
+
 	// Double-check generated filename is safe
 	if strings.Contains(filename, "..") || strings.Contains(filename, "/") || strings.Contains(filename, "\\") {
 		return nil, fmt.Errorf("invalid generated filename")
 	}
-	
+
 	// Use only the filename, not any path from user input
 	filePath := filepath.Join(UploadDir, filepath.Base(filename))
-	
+
 	// Validate final path is within upload directory
 	absUploadDir, err := filepath.Abs(UploadDir)
 	if err != nil {
@@ -129,12 +129,10 @@ func UploadVehicleAttachment(db *sql.DB, vehicleID int, attachmentType string, f
 	return &attachment, nil
 }
 
-
-
 func DeleteVehicleAttachment(db *sql.DB, attachmentID int, vehicleID int) error {
 	// Get file path first
 	var filePath string
-	err := db.QueryRow("SELECT file_path FROM vehicle_attachments WHERE id = $1 AND vehicle_id = $2", 
+	err := db.QueryRow("SELECT file_path FROM vehicle_attachments WHERE id = $1 AND vehicle_id = $2",
 		attachmentID, vehicleID).Scan(&filePath)
 	if err != nil {
 		if err == sql.ErrNoRows {

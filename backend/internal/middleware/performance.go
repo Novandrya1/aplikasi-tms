@@ -30,12 +30,12 @@ func PerformanceMonitor() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
-		
+
 		duration := time.Since(start)
 		if duration > 1*time.Second {
-			log.Printf("SLOW REQUEST: %s %s took %v", 
-				SanitizeForLog(c.Request.Method), 
-				SanitizeForLog(c.Request.URL.Path), 
+			log.Printf("SLOW REQUEST: %s %s took %v",
+				SanitizeForLog(c.Request.Method),
+				SanitizeForLog(c.Request.URL.Path),
 				duration)
 		}
 	}

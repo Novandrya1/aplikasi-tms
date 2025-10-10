@@ -46,7 +46,7 @@ func (h *GPSDeviceHandler) AssignDevice(c *gin.Context) {
 
 func (h *GPSDeviceHandler) UpdateDeviceStatus(c *gin.Context) {
 	deviceID := c.Param("deviceId")
-	
+
 	var req struct {
 		Status string `json:"status" binding:"required"`
 	}

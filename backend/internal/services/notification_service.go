@@ -65,7 +65,7 @@ func (s *NotificationService) processNotification(data NotificationData, templat
 	title := s.replaceVariables(template["title"].(string), data.Variables)
 
 	// Log notification (in production, send via email/SMS/push)
-	log.Printf("NOTIFICATION [%s] to user %d: %s - %s", 
+	log.Printf("NOTIFICATION [%s] to user %d: %s - %s",
 		strings.Join(data.Channels, ","), data.UserID, title, message)
 
 	// Store notification in database
@@ -98,9 +98,9 @@ func (s *NotificationService) getVehicleNotificationData(vehicleID int) (map[str
 
 	return map[string]interface{}{
 		"registration_number": regNumber,
-		"user_id":            userID,
-		"owner_name":         ownerName,
-		"email":              email,
+		"user_id":             userID,
+		"owner_name":          ownerName,
+		"email":               email,
 	}, nil
 }
 

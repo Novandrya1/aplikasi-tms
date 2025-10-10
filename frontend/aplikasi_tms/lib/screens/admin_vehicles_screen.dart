@@ -453,11 +453,11 @@ class _AdminVehiclesScreenState extends State<AdminVehiclesScreen> {
       statusIcon = Icons.gavel;
     } else if (status == 'inspection_scheduled') {
       statusColor = Colors.blue;
-      statusText = 'Terjadwal Inspeksi';
+      statusText = 'Menunggu Keputusan';
       statusIcon = Icons.schedule;
     } else if (status == 'in_progress') {
       statusColor = Colors.indigo;
-      statusText = 'Sedang Inspeksi';
+      statusText = 'Menunggu Keputusan';
       statusIcon = Icons.engineering;
     } else {
       // Default untuk kendaraan baru yang belum diverifikasi
@@ -1045,11 +1045,11 @@ class _VehicleDetailDialogState extends State<_VehicleDetailDialog> {
         break;
       case 'inspection_scheduled':
         statusColor = Colors.blue;
-        statusText = 'Terjadwal Inspeksi';
+        statusText = 'Menunggu Keputusan';
         break;
       case 'in_progress':
         statusColor = Colors.indigo;
-        statusText = 'Sedang Inspeksi';
+        statusText = 'Menunggu Keputusan';
         break;
       default:
         statusText = 'Menunggu Verifikasi';
@@ -1088,11 +1088,11 @@ class _VehicleDetailDialogState extends State<_VehicleDetailDialog> {
   }
 
   Widget _buildInspectionReport(Map<String, dynamic> report) {
-    return _buildSection('Laporan Inspeksi', [
+    return _buildSection('Catatan Verifikasi', [
       if (report['inspector'] != null)
-        _buildDetailRow('Inspector', report['inspector']),
+        _buildDetailRow('Verifikator', report['inspector']),
       if (report['date'] != null)
-        _buildDetailRow('Tanggal Inspeksi', _formatDateTime(report['date'])),
+        _buildDetailRow('Tanggal Verifikasi', _formatDateTime(report['date'])),
       if (report['results'] != null) ...[
         SizedBox(height: 8),
         Text(

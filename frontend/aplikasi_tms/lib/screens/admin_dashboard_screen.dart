@@ -7,7 +7,7 @@ import 'admin_verification_dashboard_screen.dart';
 import 'ocr_demo_screen.dart';
 import 'admin_document_verification_screen.dart';
 import 'vehicle_verification_screen.dart';
-import 'inspection_operator_screen.dart';
+
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/vehicle_verification_service.dart';
@@ -285,11 +285,6 @@ class AdminDashboardScreen extends StatelessWidget {
         _buildAdminCard('Verifikasi\nDokumen', Icons.description, Colors.red, () {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => const AdminDocumentVerificationScreen(),
-          ));
-        }, isMobile),
-        _buildAdminCard('Inspeksi\nOperator', Icons.assignment, Colors.teal, () {
-          Navigator.push(context, MaterialPageRoute(
-            builder: (context) => const InspectionOperatorScreen(),
           ));
         }, isMobile),
       ],

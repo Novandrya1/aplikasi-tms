@@ -18,14 +18,14 @@ func NewGPSTrackingRepository(db *sql.DB) *GPSTrackingRepository {
 func (r *GPSTrackingRepository) InsertTrackingData(data *models.GPSTrackingData) error {
 	query := `INSERT INTO gps_tracking (device_id, latitude, longitude, speed, timestamp) 
 			  VALUES ($1, $2, $3, $4, $5)`
-	
+
 	_, err := r.db.Exec(query, data.DeviceID, data.Latitude, data.Longitude, data.Speed, data.Timestamp)
-	
+
 	// Update device last signal
 	if err == nil {
 		r.updateDeviceLastSignal(data.DeviceID, data.Timestamp)
 	}
-	
+
 	return err
 }
 
@@ -39,13 +39,13 @@ func (r *GPSTrackingRepository) GetLatestPositions() ([]map[string]interface{}, 
 			  LEFT JOIN vehicles v ON d.vehicle_id = v.id
 			  WHERE d.status = 'active' AND t.timestamp IS NOT NULL
 			  ORDER BY d.device_id, t.timestamp DESC`
-	
+
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var positions []map[string]interface{}
 	for rows.Next() {
 		var deviceID, registration string
@@ -53,26 +53,26 @@ func (r *GPSTrackingRepository) GetLatestPositions() ([]map[string]interface{}, 
 		var latitude, longitude, speed float64
 		var timestamp time.Time
 		var status string
-		
+
 		err := rows.Scan(&deviceID, &vehicleID, &registration, &latitude, &longitude, &speed, &timestamp, &status)
 		if err != nil {
 			continue
 		}
-		
+
 		position := map[string]interface{}{
-			"device_id": deviceID,
-			"vehicle_id": vehicleID.Int64,
+			"device_id":           deviceID,
+			"vehicle_id":          vehicleID.Int64,
 			"registration_number": registration,
-			"latitude": latitude,
-			"longitude": longitude,
-			"speed": speed,
-			"timestamp": timestamp,
-			"status": r.getVehicleStatus(speed, timestamp),
+			"latitude":            latitude,
+			"longitude":           longitude,
+			"speed":               speed,
+			"timestamp":           timestamp,
+			"status":              r.getVehicleStatus(speed, timestamp),
 		}
-		
+
 		positions = append(positions, position)
 	}
-	
+
 	return positions, nil
 }
 
@@ -81,14 +81,14 @@ func (r *GPSTrackingRepository) GetTrackingHistory(deviceID string, hours int) (
 			  FROM gps_tracking 
 			  WHERE device_id = $1 AND timestamp >= $2 
 			  ORDER BY timestamp DESC LIMIT 100`
-	
+
 	since := time.Now().Add(-time.Duration(hours) * time.Hour)
 	rows, err := r.db.Query(query, deviceID, since)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var history []models.GPSTrackingData
 	for rows.Next() {
 		var data models.GPSTrackingData
@@ -98,7 +98,7 @@ func (r *GPSTrackingRepository) GetTrackingHistory(deviceID string, hours int) (
 		}
 		history = append(history, data)
 	}
-	
+
 	return history, nil
 }
 
@@ -109,7 +109,7 @@ func (r *GPSTrackingRepository) updateDeviceLastSignal(deviceID string, timestam
 
 func (r *GPSTrackingRepository) getVehicleStatus(speed float64, lastUpdate time.Time) string {
 	timeDiff := time.Since(lastUpdate)
-	
+
 	if timeDiff > 30*time.Minute {
 		return "offline"
 	} else if speed < 5 {

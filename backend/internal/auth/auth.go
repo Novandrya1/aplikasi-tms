@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/youruser/aplikasi-tms/backend/internal/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Claims struct {
@@ -108,11 +108,11 @@ func CreateUser(db *sql.DB, req models.RegisterRequest) (*models.User, error) {
 
 	query := `INSERT INTO users (username, email, password_hash, full_name, role) 
 			  VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
-	
+
 	var user models.User
 	err = db.QueryRow(query, req.Username, req.Email, hashedPassword, req.FullName, role).
 		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -121,24 +121,24 @@ func CreateUser(db *sql.DB, req models.RegisterRequest) (*models.User, error) {
 	user.Email = req.Email
 	user.FullName = req.FullName
 	user.Role = role
-	
+
 	return &user, nil
 }
 
 func LoginUser(db *sql.DB, req models.LoginRequest) (*models.User, error) {
 	// Database connection errors will be caught by the actual query
-	
+
 	// Allow login with either username or email
 	query := `SELECT id, username, email, password_hash, full_name, role, created_at, updated_at 
 			  FROM users WHERE username = $1 OR email = $1`
-	
+
 	var user models.User
 	var passwordHash string
-	
+
 	err := db.QueryRow(query, req.Email).Scan(
-		&user.ID, &user.Username, &user.Email, &passwordHash, 
+		&user.ID, &user.Username, &user.Email, &passwordHash,
 		&user.FullName, &user.Role, &user.CreatedAt, &user.UpdatedAt)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
